@@ -21,5 +21,3 @@ To build the `strike-off-partner-objections-processor`, you will need:
 * [Java 21](https://www.oracle.com/uk/java/technologies/downloads/#java21)
 * [Maven](https://maven.apache.org/download.cgi)
 * Internal Companies House core services
-
-You will also need a REST client (e.g. Postman or Bruno) if you wish to interact with the `strike-off-partner-objections-processor` service endpoints.
