@@ -13,6 +13,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <properties>
         <java.version>21</java.version>
+        <structured-logging.version>3.0.57</structured-logging.version>
     </properties>
     <dependencies>
         <dependency>
@@ -30,6 +31,11 @@
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>uk.gov.companieshouse</groupId>
+            <artifactId>structured-logging</artifactId>
+            <version>${structured-logging.version}</version>
         </dependency>
 
         <dependency>
