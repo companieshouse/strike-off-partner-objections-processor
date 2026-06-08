@@ -17,9 +17,9 @@
 ## Modules
 
 | Name | Source | Version |
-| ---- | ------ | ------- |
-| <a name="module_ecs-service"></a> [ecs-service](#module\_ecs-service) | git@github.com:companieshouse/terraform-modules//aws/ecs/ecs-service | 1.0.381 |
-| <a name="module_secrets"></a> [secrets](#module\_secrets) | git@github.com:companieshouse/terraform-modules//aws/ecs/secrets | 1.0.381 |
+| ---- | ------ |---------|
+| <a name="module_ecs-service"></a> [ecs-service](#module\_ecs-service) | git@github.com:companieshouse/terraform-modules//aws/ecs/ecs-service | 1.0.385 |
+| <a name="module_secrets"></a> [secrets](#module\_secrets) | git@github.com:companieshouse/terraform-modules//aws/ecs/secrets | 1.0.385 |
 
 ## Resources
 
