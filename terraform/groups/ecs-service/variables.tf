@@ -90,6 +90,27 @@ variable "service_scaleup_schedule" {
   default     = ""
 }
 
+# Task/container healthcheck tuning for consumer services
+variable "task_healthcheck_interval" {
+  type        = number
+  description = "Time period in seconds between each task/container health check."
+}
+
+variable "task_healthcheck_timeout" {
+  type        = number
+  description = "Time period in seconds to wait before considering a task/container health check failed."
+}
+
+variable "task_healthcheck_retries" {
+  type        = number
+  description = "Number of consecutive failed task/container health checks before marking unhealthy."
+}
+
+variable "task_healthcheck_start_period" {
+  type        = number
+  description = "Grace period in seconds before task/container health check failures are counted."
+}
+
 # ----------------------------------------------------------------------
 # Cloudwatch alerts
 # ----------------------------------------------------------------------
@@ -97,12 +118,6 @@ variable "cloudwatch_alarms_enabled" {
   description = "Whether to create a standard set of cloudwatch alarms for the service.  Requires an SNS topic to have already been created for the stack."
   type        = bool
   default     = false
-}
-
-variable "multilb_cloudwatch_alarms_enabled" {
-  description = "Whether to create a standard set of cloudwatch alarms for the service in multilb setup.  Requires an SNS topic to have already been created for the stack."
-  type        = bool
-  default     = true
 }
 # ------------------------------------------------------------------------------
 # Service environment variable configs

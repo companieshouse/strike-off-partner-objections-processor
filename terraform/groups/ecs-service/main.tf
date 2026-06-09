@@ -35,22 +35,13 @@ module "ecs-service" {
   vpc_id                  = data.aws_vpc.vpc.id
   ecs_cluster_id          = data.aws_ecs_cluster.ecs_cluster.id
   task_execution_role_arn = data.aws_iam_role.ecs_cluster_iam_role.arn
+  batch_service           = true
 
-  # Load balancer configuration
-  lb_listener_arn           = data.aws_lb_listener.service_lb_listener.arn
-  lb_listener_rule_priority = local.lb_listener_rule_priority
-  lb_listener_paths         = local.lb_listener_paths
-  multilb_setup             = true
-  multilb_listeners = {
-    "priv-api-lb" : {
-      listener_arn      = data.aws_lb_listener.secondary_lb_listener.arn,
-      load_balancer_arn = data.aws_lb.secondary_lb.arn
-    }
-    "pub-api-lb" : {
-      load_balancer_arn = data.aws_lb.service_lb.arn
-      listener_arn      = data.aws_lb_listener.service_lb_listener.arn
-    }
-  }
+  # Disable ALB-target metrics for non-LB consumer service
+  cloudwatch_unhealthy_host_count_enabled = false
+  cloudwatch_healthy_host_count_enabled   = false
+  cloudwatch_response_time_enabled        = false
+  cloudwatch_http_5xx_error_count_enabled = false
 
   # Docker container details
   docker_registry           = var.docker_registry
@@ -70,8 +61,12 @@ module "ecs-service" {
   use_task_container_healthcheck    = true
   healthcheck_path                  = local.healthcheck_path
   healthcheck_matcher               = local.healthcheck_matcher
-  health_check_grace_period_seconds = 300
+  health_check_grace_period_seconds = 180
   healthcheck_healthy_threshold     = "2"
+  task_healthcheck_interval         = var.task_healthcheck_interval
+  task_healthcheck_timeout          = var.task_healthcheck_timeout
+  task_healthcheck_retries          = var.task_healthcheck_retries
+  task_healthcheck_start_period     = var.task_healthcheck_start_period
 
   # Service performance and scaling configs
   desired_task_count                 = var.desired_task_count
@@ -103,6 +98,4 @@ module "ecs-service" {
   eric_memory               = var.eric_memory
 
   depends_on = [module.secrets]
-
 }
-
