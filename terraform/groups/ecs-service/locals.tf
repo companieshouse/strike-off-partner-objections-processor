@@ -16,11 +16,7 @@ locals {
   use_set_environment_files  = var.use_set_environment_files
   app_environment_filename   = "strike-off-partner-objections-processor.env"
   vpc_name                   = local.stack_secrets["vpc_name"]
-
-  # Enable Eric
-  use_eric_reverse_proxy = true
-  eric_port              = "10000" # container port plus 1
-
+  
   service_secrets_arn_map = {
     for sec in module.secrets.secrets :
     trimprefix(sec.name, "/${local.service_name}-${var.environment}/") => sec.arn
@@ -56,12 +52,5 @@ locals {
   task_secrets = concat(local.global_secret_list, local.service_secret_list)
 
   task_environment = concat(local.ssm_global_version_map, local.ssm_service_version_map)
-
-  # get eric secrets from global secrets map
-  eric_secrets = [
-    { "name" : "API_KEY", "valueFrom" : local.global_secrets_arn_map.eric_api_key },
-    { "name" : "AES256_KEY", "valueFrom" : local.global_secrets_arn_map.eric_aes256_key }
-  ]
-
-  eric_environment_filename = "eric.env"
+  
 }

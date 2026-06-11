@@ -138,21 +138,3 @@ variable "strike_off_partner_objections_processor_version" {
   type        = string
   description = "The version of the strike_off_partner_objections_processor container to run."
 }
-
-# ------------------------------------------------------------------------------
-# ERIC environment variable configs
-# ------------------------------------------------------------------------------
-variable "eric_cpus" {
-  type        = number
-  description = "The required cpu resource for eric. 1024 here is 1 vCPU"
-  default     = 256
-}
-variable "eric_memory" {
-  type        = number
-  description = "The required memory for eric"
-  default     = 512
-}
-variable "eric_version" {
-  type        = string
-  description = "The version of the eric container to run."
-}

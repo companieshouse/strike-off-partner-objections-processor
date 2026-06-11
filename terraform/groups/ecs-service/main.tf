@@ -87,15 +87,6 @@ module "ecs-service" {
   task_secrets              = local.task_secrets
   app_environment_filename  = local.app_environment_filename
   use_set_environment_files = local.use_set_environment_files
-
-  # Eric variables
-  use_eric_reverse_proxy    = local.use_eric_reverse_proxy
-  eric_port                 = local.eric_port
-  eric_environment_filename = local.eric_environment_filename
-  eric_secrets              = local.eric_secrets
-  eric_version              = var.eric_version
-  eric_cpus                 = var.eric_cpus
-  eric_memory               = var.eric_memory
-
+  
   depends_on = [module.secrets]
 }

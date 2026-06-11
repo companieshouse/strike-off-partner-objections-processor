@@ -51,9 +51,6 @@
 | <a name="input_desired_task_count"></a> [desired\_task\_count](#input\_desired\_task\_count) | The desired ECS task count for this service | `number` | `1` | no |
 | <a name="input_docker_registry"></a> [docker\_registry](#input\_docker\_registry) | The FQDN of the Docker registry. | `string` | n/a | yes |
 | <a name="input_environment"></a> [environment](#input\_environment) | The environment name, defined in envrionments vars. | `string` | n/a | yes |
-| <a name="input_eric_cpus"></a> [eric\_cpus](#input\_eric\_cpus) | The required cpu resource for eric. 1024 here is 1 vCPU | `number` | `256` | no |
-| <a name="input_eric_memory"></a> [eric\_memory](#input\_eric\_memory) | The required memory for eric | `number` | `512` | no |
-| <a name="input_eric_version"></a> [eric\_version](#input\_eric\_version) | The version of the eric container to run. | `string` | n/a | yes |
 | <a name="input_hashicorp_vault_password"></a> [hashicorp\_vault\_password](#input\_hashicorp\_vault\_password) | The password used when retrieving configuration from Hashicorp Vault | `string` | n/a | yes |
 | <a name="input_hashicorp_vault_username"></a> [hashicorp\_vault\_username](#input\_hashicorp\_vault\_username) | The username used when retrieving configuration from Hashicorp Vault | `string` | n/a | yes |
 | <a name="input_max_task_count"></a> [max\_task\_count](#input\_max\_task\_count) | The maximum number of tasks for this service. | `number` | `3` | no |
