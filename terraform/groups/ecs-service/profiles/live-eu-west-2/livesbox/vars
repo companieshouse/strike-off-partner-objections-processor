@@ -5,3 +5,9 @@ aws_profile = "live-eu-west-2"
 desired_task_count = 2
 max_task_count     = 3
 min_task_count     = 2
+
+# task container healthcheck parameters
+task_healthcheck_interval = 60
+task_healthcheck_timeout = 5
+task_healthcheck_retries = 3
+task_healthcheck_start_period = 120
