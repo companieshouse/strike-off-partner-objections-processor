@@ -4,7 +4,7 @@ Kafka processor service for consuming strike-off objections and withdrawals, int
 ---
 ## Related Services
 
-- [strike-off-partner-objections-api](https://github.com/companieshouse/strike-off-partner-objections-api)
+- [strike-off-partner-objections-processor](https://github.com/companieshouse/strike-off-partner-objections-processor)
 
 ## Technology Stack
 - Java 21
