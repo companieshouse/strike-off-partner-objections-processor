@@ -1,8 +1,8 @@
 environment = "live"
 aws_profile = "live-eu-west-2"
 
-required_cpus = 768
-required_memory = 1536
+required_cpus = 1024
+required_memory = 2048
 service_autoscale_target_value_cpu = 60
 
 # service configs
