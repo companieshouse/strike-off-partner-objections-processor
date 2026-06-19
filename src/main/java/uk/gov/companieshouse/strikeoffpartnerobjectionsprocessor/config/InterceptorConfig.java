@@ -12,6 +12,9 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.interceptor.Aut
 public class InterceptorConfig implements WebMvcConfigurer {
 
     public static final String HEALTH_CHECK = "**/healthcheck";
+    public static final String SPECIFIC_HEALTH_CHECK = "/strike-off-partner-objections-processor/healthcheck";
+    public static final String SPECIFIC_HEALTH_CHECK_TRAILING_SLASH = "/strike-off-partner-objections-processor/healthcheck/";
+    
     
     private final AuthenticationInterceptor authenticationInterceptor;
 
@@ -35,7 +38,9 @@ public class InterceptorConfig implements WebMvcConfigurer {
      */
     private void addAuthenticationInterceptor(InterceptorRegistry registry) {
         registry.addInterceptor(authenticationInterceptor)
-                .excludePathPatterns(HEALTH_CHECK);
+                .excludePathPatterns(HEALTH_CHECK)
+                .excludePathPatterns(SPECIFIC_HEALTH_CHECK)
+                .excludePathPatterns(SPECIFIC_HEALTH_CHECK_TRAILING_SLASH);
     }
     
 }
