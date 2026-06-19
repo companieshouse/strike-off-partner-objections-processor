@@ -11,7 +11,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.interceptor.Aut
 @ComponentScan("uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.interceptor")
 public class InterceptorConfig implements WebMvcConfigurer {
 
-    public static final String HEALTH_CHECK = "/*/healthcheck";
+    public static final String HEALTH_CHECK = "**/healthcheck";
     
     private final AuthenticationInterceptor authenticationInterceptor;
 
