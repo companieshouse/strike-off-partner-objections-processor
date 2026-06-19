@@ -26,7 +26,7 @@
         <!-- Override vulnerable Tomcat version -->
         <tomcat.version>11.0.22</tomcat.version>
         <private-api-sdk-java.version>6.0.19</private-api-sdk-java.version>
-        <opentelemetry-semconv.version>1.41.0</opentelemetry-semconv.version>
+        <opentelemetry-semconv.version>1.44.0</opentelemetry-semconv.version>
 
         <!--sonar configuration-->
         <sonar.token>${CODE_ANALYSIS_TOKEN}</sonar.token>
