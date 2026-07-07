@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,58 +36,58 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
     }
 
     @Test
-    void validate_nullMessage_throwsIllegalArgument() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+    void validate_nullMessage_throwsInvalidMessage() {
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(null));
         assertTrue(ex.getMessage().contains("eventType"));
     }
 
     @Test
-    void validate_nullEventType_throwsIllegalArgument() {
+    void validate_nullEventType_throwsInvalidMessage() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setEventType(null);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("eventType"));
     }
 
     @Test
-    void validate_nullEventId_throwsIllegalArgument() {
+    void validate_nullEventId_throwsInvalidMessage() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setEventId(null);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("eventId"));
     }
 
     @Test
-    void validate_nullPartnerOrganisation_throwsIllegalArgument() {
+    void validate_nullPartnerOrganisation_throwsInvalidMessage() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setPartnerOrganisation(null);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("PartnerOrganisation"));
     }
 
     @Test
-    void validate_blankEventId_throwsIllegalArgument() {
+    void validate_blankEventId_throwsInvalidMessage() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setEventId("   ");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("eventId"));
     }
 
     @Test
-    void validate_blankPartnerOrganisation_throwsIllegalArgument() {
+    void validate_blankPartnerOrganisation_throwsInvalidMessage() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setPartnerOrganisation("  ");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("PartnerOrganisation"));
     }
@@ -96,7 +97,7 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setEventType(EventType.WITHDRAWAL);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("unsupported event type"));
     }

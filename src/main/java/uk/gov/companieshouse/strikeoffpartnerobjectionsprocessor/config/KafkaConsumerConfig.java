@@ -29,17 +29,17 @@ public class KafkaConsumerConfig {
     @Value("${kafka.strikeoff.objections.group-id:default-group}")
     private String groupId;
 
-@Value("${kafka.session.timeout:10000}")
-private int sessionTimeout;
+    @Value("${kafka.session.timeout:10000}")
+    private int sessionTimeout;
 
-@Value("${kafka.max.poll.interval:300000}")
-private int maxPollInterval;
+    @Value("${kafka.max.poll.interval:300000}")
+    private int maxPollInterval;
 
-@Value("${kafka.heartbeat.interval:3000}")
-private int heartbeatInterval;
+    @Value("${kafka.heartbeat.interval:3000}")
+    private int heartbeatInterval;
 
-@Value("${kafka.max.poll.records:500}")
-private int maxPollRecords;
+    @Value("${kafka.max.poll.records:500}")
+    private int maxPollRecords;
 
 
     // =========================================================================

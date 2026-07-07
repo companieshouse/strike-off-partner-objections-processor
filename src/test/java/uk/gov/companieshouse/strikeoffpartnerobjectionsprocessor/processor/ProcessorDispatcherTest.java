@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import java.util.List;
 
@@ -44,7 +45,7 @@ class ProcessorDispatcherTest {
         StrikeOffPartnerObjections msg = message(EventType.WITHDRAWAL);
         when(processor.supports(EventType.WITHDRAWAL)).thenReturn(false);
 
-        assertThrows(IllegalArgumentException.class, () -> dispatcher.dispatch(msg));
+        assertThrows(InvalidStrikeOffMessageException.class, () -> dispatcher.dispatch(msg));
     }
 
     @Test
