@@ -50,8 +50,10 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             ConsumerRecord<String, StrikeOffPartnerObjections> consumerRecord) {
 
         final StrikeOffPartnerObjections event = consumerRecord.value();
-        final String eventId = event != null && event.getEventId() != null ? event.getEventId() : "unknown";
-
+        if (event == null) {
+            throw new NonRetryableErrorException("Missing StrikeOffPartnerObjections payload");
+        }
+        final String eventId = event.getEventId() != null ? event.getEventId() : "unknown";
         try {
             var logMap = new DataMap.Builder()
                     .topic(consumerRecord.topic())
@@ -65,7 +67,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             LOG.infoContext(eventId, "Event processed successfully", logMap);
 
         } catch ( Exception exception ){
-            LOG.error( "Error encountered in Letter Consumer: ", exception );
+            LOG.error("Error encountered in StrikeOffPartnerObjectionsKafkaConsumer: ", exception );
             throw exception;
         }
     }

@@ -36,9 +36,10 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     @Test
     void consumeMessage_firstAttempt_nullAttemptNumber_doesNotThrow() {
         // attemptNumber is null on the first delivery (no retry header present)
-        consumer.consumeStrikeOffObjectionsMessage(null, triggerObjectionEvent());
+        ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
+        consumer.consumeStrikeOffObjectionsMessage(null, objectionRecord);
 
-        verify(processorDispatcher).dispatch(triggerObjectionEvent().value());
+        verify(processorDispatcher).dispatch(objectionRecord.value());
     }
 
     @Test

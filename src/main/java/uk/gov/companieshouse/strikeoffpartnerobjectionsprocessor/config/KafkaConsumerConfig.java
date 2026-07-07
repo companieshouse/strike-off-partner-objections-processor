@@ -29,17 +29,17 @@ public class KafkaConsumerConfig {
     @Value("${kafka.strikeoff.objections.group-id:default-group}")
     private String groupId;
 
-    @Value("${kafka.consumer.session-timeout-ms:10000}")
-    private int sessionTimeout;
+@Value("${kafka.session.timeout:10000}")
+private int sessionTimeout;
 
-    @Value("${kafka.consumer.max-poll-interval-ms:300000}")
-    private int maxPollInterval;
+@Value("${kafka.max.poll.interval:300000}")
+private int maxPollInterval;
 
-    @Value("${kafka.consumer.heartbeat-interval-ms:3000}")
-    private int heartbeatInterval;
+@Value("${kafka.heartbeat.interval:3000}")
+private int heartbeatInterval;
 
-    @Value("${kafka.consumer.max-poll-records:500}")
-    private int maxPollRecords;
+@Value("${kafka.max.poll.records:500}")
+private int maxPollRecords;
 
 
     // =========================================================================
@@ -62,7 +62,9 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, heartbeatInterval);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
-        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), new AvroDeserializer<>(StrikeOffPartnerObjections.class));
+        return new DefaultKafkaConsumerFactory<>(props,
+                new ErrorHandlingDeserializer<>(new StringDeserializer()),
+                new ErrorHandlingDeserializer<>(new AvroDeserializer<>(StrikeOffPartnerObjections.class)));
     }
 
     // =========================================================================

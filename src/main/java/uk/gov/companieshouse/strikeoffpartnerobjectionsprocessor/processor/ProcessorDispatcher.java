@@ -14,6 +14,10 @@ public class ProcessorDispatcher {
     }
 
     public void dispatch(StrikeOffPartnerObjections message) {
+        if (message == null || message.getEventType() == null) {
+            throw new IllegalArgumentException("Missing eventType");
+        }
+
         processors.stream()
                 .filter(p -> p.supports(message.getEventType()))
                 .findFirst()
