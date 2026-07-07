@@ -1,5 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
+import org.apache.commons.lang3.StringUtils;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 
@@ -17,10 +18,10 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
         if (message == null || message.getEventType() == null) {
             throw new IllegalArgumentException("Missing eventType");
         }
-        if (message.getEventId() == null || message.getEventId().isBlank()) {
+        if (StringUtils.isBlank(message.getEventId())) {
             throw new IllegalArgumentException("Missing eventId");
         }
-        if (message.getPartnerOrganisation() == null || message.getPartnerOrganisation().isBlank()) {
+        if (StringUtils.isBlank(message.getPartnerOrganisation())) {
             throw new IllegalArgumentException("Missing PartnerOrganisation");
         }
     }
