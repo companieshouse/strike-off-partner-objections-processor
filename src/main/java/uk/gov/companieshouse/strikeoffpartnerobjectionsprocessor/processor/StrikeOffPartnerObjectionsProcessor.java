@@ -8,6 +8,13 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
 
+/**
+ * Processor for strike-off partner objection events.
+ *
+ * <p>This implementation handles only {@link EventType#OBJECTION} messages and
+ * performs objection-specific processing after base validation is completed in
+ * {@link AbstractStrikeOffPartnerObjectionsProcessor#process(StrikeOffPartnerObjections)}.
+ */
 @Component
 public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerObjectionsProcessor {
 

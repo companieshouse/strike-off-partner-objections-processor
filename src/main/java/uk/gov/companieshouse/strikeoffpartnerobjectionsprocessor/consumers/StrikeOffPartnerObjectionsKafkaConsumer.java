@@ -20,6 +20,16 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.Proce
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
 
 
+/**
+ * Kafka consumer for strike-off partner objections events.
+ *
+ * <p>This component listens to the configured incoming topic, logs message metadata,
+ * and delegates processing to {@link ProcessorDispatcher}.
+ *
+ * <p>Retry behavior is managed by {@link RetryableTopic}. Exceptions of type
+ * {@link NonRetryableErrorException} are excluded from retries and are routed directly
+ * to the configured error topic.
+ */
 @Component
 public class StrikeOffPartnerObjectionsKafkaConsumer {
     private final ProcessorDispatcher processorDispatcher;

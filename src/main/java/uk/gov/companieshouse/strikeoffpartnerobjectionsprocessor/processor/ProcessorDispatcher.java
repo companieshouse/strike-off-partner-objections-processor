@@ -6,6 +6,17 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 
 import java.util.List;
 
+/**
+ * Dispatches {@link StrikeOffPartnerObjections} messages to the first processor
+ * that declares support for the message event type.
+ *
+ * <p>This component coordinates available {@link AbstractStrikeOffPartnerObjectionsProcessor}
+ * implementations and routes each message to a single matching processor.
+ *
+ * <p>If no processor supports the message event type, an
+ * {@link uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException}
+ * is thrown.
+ */
 @Component
 public class ProcessorDispatcher {
     private final List<AbstractStrikeOffPartnerObjectionsProcessor> processors;
