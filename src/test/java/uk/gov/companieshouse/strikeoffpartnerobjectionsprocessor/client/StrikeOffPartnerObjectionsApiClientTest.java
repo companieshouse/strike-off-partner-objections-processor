@@ -3,7 +3,6 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -21,10 +20,11 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
 
 class StrikeOffPartnerObjectionsApiClientTest {
 
@@ -74,11 +74,17 @@ class StrikeOffPartnerObjectionsApiClientTest {
 
         client.updateObjectionStatusToProcessing("00006401", "obj-001", "evt-001");
 
-        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-        verify(restTemplate).exchange(any(URI.class), eq(HttpMethod.POST), entityCaptor.capture(), eq(Void.class));
-
-        assertEquals("objection-processing",
-                ((Map<?, ?>) entityCaptor.getValue().getBody()).get("processing_status"));
+        verify(restTemplate).exchange(
+                any(URI.class),
+                eq(HttpMethod.POST),
+                argThat((HttpEntity<?> entity) -> {
+                    Object body = entity.getBody();
+                    if (!(body instanceof Map<?, ?> requestBody)) {
+                        return false;
+                    }
+                    return "objection-processing".equals(requestBody.get("processing_status"));
+                }),
+                eq(Void.class));
     }
 
     @Test
