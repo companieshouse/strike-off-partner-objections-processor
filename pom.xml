@@ -26,7 +26,7 @@
         <kafka-models.version>3.0.34</kafka-models.version>
         <!-- Override vulnerable Tomcat version -->
         <tomcat.version>11.0.23</tomcat.version>
-        <private-api-sdk-java.version>7.0.1</private-api-sdk-java.version>
+        <private-api-sdk-java.version>7.0.8</private-api-sdk-java.version>
         <opentelemetry-semconv.version>1.42.0</opentelemetry-semconv.version>
 
         <!--sonar configuration-->
