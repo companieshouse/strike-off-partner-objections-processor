@@ -5,9 +5,12 @@ import org.junit.jupiter.api.Test;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.StrikeOffPartnerObjectionsApiClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -53,6 +56,50 @@ class StrikeOffPartnerObjectionsProcessorTest {
 
         verify(apiClient).getObjectionProcessingStatus("00006401", "objection-001", "evt-001");
         verify(apiClient, never()).updateObjectionStatusToProcessing("00006401", "objection-001", "evt-001");
+    }
+
+    @Test
+    void process_missingCompanyNumber_throwsInvalidMessage() {
+        StrikeOffPartnerObjections message = objectionMessage();
+        message.setSource(null);
+
+        InvalidStrikeOffMessageException ex =
+                assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
+
+        assertEquals("Missing companyNumber in source", ex.getMessage());
+    }
+
+    @Test
+    void process_blankCompanyNumber_throwsInvalidMessage() {
+        StrikeOffPartnerObjections message = objectionMessage();
+        message.setSource("   ");
+
+        InvalidStrikeOffMessageException ex =
+                assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
+
+        assertEquals("Missing companyNumber in source", ex.getMessage());
+    }
+
+    @Test
+    void process_missingObjectionId_throwsInvalidMessage() {
+        StrikeOffPartnerObjections message = objectionMessage();
+        message.setStrikeOffEventId(null);
+
+        InvalidStrikeOffMessageException ex =
+                assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
+
+        assertEquals("Missing objectionId", ex.getMessage());
+    }
+
+    @Test
+    void process_blankObjectionId_throwsInvalidMessage() {
+        StrikeOffPartnerObjections message = objectionMessage();
+        message.setStrikeOffEventId("  ");
+
+        InvalidStrikeOffMessageException ex =
+                assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
+
+        assertEquals("Missing objectionId", ex.getMessage());
     }
 
     private StrikeOffPartnerObjections objectionMessage() {

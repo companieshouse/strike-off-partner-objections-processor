@@ -19,6 +19,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,6 +52,11 @@ class StrikeOffPartnerObjectionsApiClientTest {
         String status = client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001");
 
         assertEquals("objection-submitted", status);
+        verify(restTemplate).exchange(
+                any(URI.class),
+                eq(HttpMethod.GET),
+                argThat((HttpEntity<?> entity) -> "evt-001".equals(entity.getHeaders().getFirst("X-Request-Id"))),
+                eq(String.class));
     }
 
     @Test
@@ -68,6 +74,78 @@ class StrikeOffPartnerObjectionsApiClientTest {
     }
 
     @Test
+    void getObjectionProcessingStatus_nullBody_throwsIllegalStateException() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(null));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Unexpected API response"));
+    }
+
+    @Test
+    void getObjectionProcessingStatus_non2xxResponse_throwsIllegalStateException() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("{\"processing_status\":\"objection-submitted\"}"));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Unexpected API response"));
+    }
+
+    @Test
+    void getObjectionProcessingStatus_malformedJson_throwsIllegalStateException() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{invalid-json}"));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Invalid API response JSON"));
+    }
+
+    @Test
+    void getObjectionProcessingStatus_missingProcessingStatus_throwsInvalidMessage() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"status\":\"objection-submitted\"}"));
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Missing processing_status"));
+    }
+
+    @Test
+    void getObjectionProcessingStatus_blankProcessingStatus_throwsInvalidMessage() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"processing_status\":\"   \"}"));
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Missing processing_status"));
+    }
+
+    @Test
+    void getObjectionProcessingStatus_httpClientError_throwsInvalidMessage() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenThrow(HttpClientErrorException.create(
+                        HttpStatus.BAD_REQUEST,
+                        "Bad Request",
+                        HttpHeaders.EMPTY,
+                        new byte[0],
+                        StandardCharsets.UTF_8));
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> client.getObjectionProcessingStatus("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Failed to fetch objection"));
+    }
+
+    @Test
     void updateObjectionStatusToProcessing_postsExpectedPayload() {
         when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Void.class)))
                 .thenReturn(new ResponseEntity<>(HttpStatus.NO_CONTENT));
@@ -78,6 +156,9 @@ class StrikeOffPartnerObjectionsApiClientTest {
                 any(URI.class),
                 eq(HttpMethod.POST),
                 argThat((HttpEntity<?> entity) -> {
+                    if (!"evt-001".equals(entity.getHeaders().getFirst("X-Request-Id"))) {
+                        return false;
+                    }
                     Object body = entity.getBody();
                     if (!(body instanceof Map<?, ?> requestBody)) {
                         return false;
@@ -98,6 +179,38 @@ class StrikeOffPartnerObjectionsApiClientTest {
                         StandardCharsets.UTF_8));
 
         assertDoesNotThrow(() -> client.updateObjectionStatusToProcessing("00006401", "obj-001", "evt-001"));
+    }
+
+    @Test
+    void updateObjectionStatusToProcessing_notFound_throwsInvalidMessage() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Void.class)))
+                .thenThrow(HttpClientErrorException.create(
+                        HttpStatus.NOT_FOUND,
+                        "Not Found",
+                        HttpHeaders.EMPTY,
+                        new byte[0],
+                        StandardCharsets.UTF_8));
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> client.updateObjectionStatusToProcessing("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Objection not found"));
+    }
+
+    @Test
+    void updateObjectionStatusToProcessing_httpClientError_throwsInvalidMessage() {
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Void.class)))
+                .thenThrow(HttpClientErrorException.create(
+                        HttpStatus.BAD_REQUEST,
+                        "Bad Request",
+                        HttpHeaders.EMPTY,
+                        new byte[0],
+                        StandardCharsets.UTF_8));
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> client.updateObjectionStatusToProcessing("00006401", "obj-001", "evt-001"));
+
+        assertTrue(ex.getMessage().contains("Failed to update objection status"));
     }
 }
 
