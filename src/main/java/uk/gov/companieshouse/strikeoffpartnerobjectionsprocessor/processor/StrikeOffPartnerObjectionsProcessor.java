@@ -44,7 +44,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .getObjection(uri)
                     .execute();
-            LOG.info("Fetched objection for objetionId=" + response.getData().getObjectionId()
+            LOG.info("Fetched objection for objectionId=" + response.getData().getObjectionId()
                     + ", status=" + response.getStatusCode());
         } catch (Exception e) {
             throw mapApiException(message.getEventId(), e);
