@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
@@ -34,10 +35,11 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing withdrawal event with ID: " + message.getEventId());
-        getWithdrawalDetails(message);
+        var response = getWithdrawalDetails(message);
+        LOG.info("Withdrawal details fetched: withdrawalId=" + response.getWithdrawalId());
     }
 
-    private void getWithdrawalDetails(StrikeOffPartnerObjections message) {
+    private WithdrawAllObjectionsResponse getWithdrawalDetails(StrikeOffPartnerObjections message) {
         String uri = buildResourceUri(message, RESOURCE_SEGMENT);
         try {
             var response = internalApiClient
@@ -47,6 +49,7 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
 
             LOG.info("Fetched withdrawal for withdrawalId=" + response.getData().getWithdrawalId()
                     + ", status=" + response.getStatusCode());
+            return response.getData();
         } catch (Exception e) {
             throw mapApiException(message.getEventId(), e);
         }

@@ -48,11 +48,15 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
         if (message == null || message.getEventType() == null) {
             throw new InvalidStrikeOffMessageException("Missing eventType");
         }
-        if (message.getEventId() == null || message.getEventId().isBlank()) {
-            throw new InvalidStrikeOffMessageException("Missing eventId");
-        }
-        if (message.getPartnerOrganisation() == null || message.getPartnerOrganisation().isBlank()) {
-            throw new InvalidStrikeOffMessageException("Missing PartnerOrganisation");
+        requireNotBlank(message.getEventId(), "eventId");
+        requireNotBlank(message.getPartnerOrganisation(), "PartnerOrganisation");
+        requireNotBlank(message.getCompanyNumber(), "Company number");
+        requireNotBlank(message.getStrikeOffEventId(), "StrikeOffEventId");
+    }
+
+    private void requireNotBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidStrikeOffMessageException("Missing " + fieldName);
         }
     }
 

@@ -95,6 +95,26 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
     }
 
     @Test
+    void validate_blankCompanyNumber_throwsInvalidMessage() {
+        StrikeOffPartnerObjections msg = validMessage();
+        msg.setCompanyNumber("  ");
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(msg));
+        assertTrue(ex.getMessage().contains("Company number"));
+    }
+
+    @Test
+    void validate_blankStrikeOffEventId_throwsInvalidMessage() {
+        StrikeOffPartnerObjections msg = validMessage();
+        msg.setStrikeOffEventId("  ");
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(msg));
+        assertTrue(ex.getMessage().contains("StrikeOffEventId"));
+    }
+
+    @Test
     void process_unsupportedEventType_throwsRuntimeException() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setEventType(EventType.WITHDRAWAL);

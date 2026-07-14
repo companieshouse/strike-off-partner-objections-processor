@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
@@ -34,10 +35,11 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing objection event with ID: " + message.getEventId());
-        getObjectionDetails(message);
+        var response = getObjectionDetails(message);
+        LOG.info("Objection details fetched: objectionId=" + response.getObjectionId());
     }
 
-    private void getObjectionDetails(StrikeOffPartnerObjections message) {
+    private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjections message) {
         String uri = buildResourceUri(message, RESOURCE_SEGMENT);
         try {
             var response = internalApiClient
@@ -46,6 +48,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
                     .execute();
             LOG.info("Fetched objection for objectionId=" + response.getData().getObjectionId()
                     + ", status=" + response.getStatusCode());
+            return response.getData();
         } catch (Exception e) {
             throw mapApiException(message.getEventId(), e);
         }
