@@ -7,4 +7,9 @@ public class InvalidStrikeOffMessageException extends NonRetryableErrorException
     public InvalidStrikeOffMessageException(String message) {
         super(message);
     }
+
+    public InvalidStrikeOffMessageException(String message, Throwable cause) {
+        super(message);
+        initCause(cause);
+    }
 }

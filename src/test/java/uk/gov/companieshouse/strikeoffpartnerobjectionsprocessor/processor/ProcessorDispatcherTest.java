@@ -70,6 +70,7 @@ class ProcessorDispatcherTest {
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
                 .setEventType(type)
+                .setCompanyNumber("12345678")
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-001")
                 .build();

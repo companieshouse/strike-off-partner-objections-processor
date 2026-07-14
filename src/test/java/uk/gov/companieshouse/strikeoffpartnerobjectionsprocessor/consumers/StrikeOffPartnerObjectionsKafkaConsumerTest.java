@@ -67,6 +67,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 .setEventId("evt-001")
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
+                .setCompanyNumber("12345678")
                 .setEventType(EventType.OBJECTION)
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-001")

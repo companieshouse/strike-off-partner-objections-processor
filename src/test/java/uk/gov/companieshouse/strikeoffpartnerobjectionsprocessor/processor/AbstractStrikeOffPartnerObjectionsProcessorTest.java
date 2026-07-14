@@ -2,6 +2,8 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
@@ -17,7 +19,7 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
     @BeforeEach
     void setUp() {
         // Minimal concrete subclass that supports OBJECTION
-        processor = new AbstractStrikeOffPartnerObjectionsProcessor() {
+        processor = new AbstractStrikeOffPartnerObjectionsProcessor(Mockito.mock(InternalApiClient.class)) {
             @Override
             protected boolean supports(EventType eventType) {
                 return eventType == EventType.OBJECTION;
@@ -107,6 +109,7 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
                 .setEventId("evt-001")
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
+                .setCompanyNumber("12345678")
                 .setEventType(EventType.OBJECTION)
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-001")
