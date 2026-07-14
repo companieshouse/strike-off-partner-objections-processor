@@ -33,7 +33,7 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
 
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
-        LOG.info("Processing objection event with ID: " + message.getEventId());
+        LOG.info("Processing withdrawal event with ID: " + message.getEventId());
         getWithdrawalDetails(message);
     }
 
