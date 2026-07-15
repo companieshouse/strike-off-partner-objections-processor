@@ -28,8 +28,8 @@ import static org.mockito.Mockito.when;
 class StrikeOffPartnerObjectionsProcessorTest {
 
     private final InternalApiClient internalApiClient = mock(InternalApiClient.class);
-    private final StrikeOffPartnerObjectionsProcessor processor =
-            new StrikeOffPartnerObjectionsProcessor(internalApiClient);
+    private final StrikeOffPartnerEventsProcessor processor =
+            new StrikeOffPartnerEventsProcessor(internalApiClient);
 
     @Test
     void supportsObjections_butNotWithdrawals() {

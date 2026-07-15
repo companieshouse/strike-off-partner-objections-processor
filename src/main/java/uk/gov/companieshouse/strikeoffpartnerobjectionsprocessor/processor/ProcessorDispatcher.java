@@ -10,7 +10,7 @@ import java.util.List;
  * Dispatches {@link StrikeOffPartnerObjections} messages to the first processor
  * that declares support for the message event type.
  *
- * <p>This component coordinates available {@link AbstractStrikeOffPartnerObjectionsProcessor}
+ * <p>This component coordinates available {@link AbstractStrikeOffPartnerEventsProcessor}
  * implementations and routes each message to a single matching processor.
  *
  * <p>If no processor supports the message event type, an
@@ -19,9 +19,9 @@ import java.util.List;
  */
 @Component
 public class ProcessorDispatcher {
-    private final List<AbstractStrikeOffPartnerObjectionsProcessor> processors;
+    private final List<AbstractStrikeOffPartnerEventsProcessor> processors;
 
-    public ProcessorDispatcher(List<AbstractStrikeOffPartnerObjectionsProcessor> processors) {
+    public ProcessorDispatcher(List<AbstractStrikeOffPartnerEventsProcessor> processors) {
         this.processors = processors;
     }
 

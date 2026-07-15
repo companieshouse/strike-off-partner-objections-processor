@@ -17,10 +17,10 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  *
  * <p>This implementation handles only {@link EventType#WITHDRAWAL} messages and
  * performs withdrawal-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerObjectionsProcessor#process(StrikeOffPartnerObjections)}.
+ * {@link AbstractStrikeOffPartnerEventsProcessor#process(StrikeOffPartnerObjections)}.
  */
 @Component
-public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerObjectionsProcessor {
+public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
     private static final String RESOURCE_SEGMENT = "strike-off-partner-withdrawals";
