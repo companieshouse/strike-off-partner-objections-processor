@@ -20,12 +20,12 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  * {@link AbstractStrikeOffPartnerEventsProcessor#process(StrikeOffPartnerObjections)}.
  */
 @Component
-public class StrikeOffPartnerEventsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
     private static final String RESOURCE_SEGMENT = "strike-off-partner-objections";
 
-    protected StrikeOffPartnerEventsProcessor(InternalApiClient internalApiClient) {
+    protected StrikeOffPartnerObjectionsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient);
     }
 
