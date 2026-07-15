@@ -9,6 +9,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -122,6 +123,13 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
         InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("unsupported event type"));
+    }
+
+    @Test
+    void buildResourceUri_withDifferentSegment() {
+        StrikeOffPartnerObjections msg = validMessage();
+        assertEquals("/company/12345678/strike-off-partner-withdrawals/strike-001",
+                processor.buildResourceUri(msg, "strike-off-partner-withdrawals"));
     }
 
     private StrikeOffPartnerObjections validMessage() {
