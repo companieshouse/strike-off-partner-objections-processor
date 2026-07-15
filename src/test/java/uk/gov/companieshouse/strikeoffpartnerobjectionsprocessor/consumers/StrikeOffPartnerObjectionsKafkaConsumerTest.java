@@ -9,8 +9,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -62,11 +64,34 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
     }
 
+
+
+    @Test
+    void consume_ShouldHandleDuplicateRecordException() {
+        // Given
+        StrikeOffPartnerObjections event = new StrikeOffPartnerObjections();
+        event.setEventId("event-123");
+
+        ConsumerRecord<String, StrikeOffPartnerObjections> consumerRecord =
+                new ConsumerRecord<>("topic", 0, 0L, "key", event);
+
+        doThrow(new DuplicateRecordException("Duplicate record"))
+                .when(processorDispatcher)
+                .dispatch(event);
+
+        // When / Then
+        assertDoesNotThrow(() ->
+                consumer.consumeStrikeOffObjectionsMessage(1, consumerRecord));
+
+        verify(processorDispatcher).dispatch(event);
+    }
+
     private ConsumerRecord<String, StrikeOffPartnerObjections> triggerObjectionEvent() {
         StrikeOffPartnerObjections event = StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-001")
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
+                .setCompanyNumber("12345678")
                 .setEventType(EventType.OBJECTION)
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-001")

@@ -1,5 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -7,16 +8,15 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.api.handler.objections.PrivateStrikeOffPartnerObjectionsResourceHandler;
-import uk.gov.companieshouse.api.handler.objections.request.GetObjection;
+import uk.gov.companieshouse.api.handler.objections.request.GetAllWithdrawals;
 import uk.gov.companieshouse.api.model.ApiResponse;
-import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
-import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,47 +25,24 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class StrikeOffPartnerObjectionsProcessorTest {
+class StrikeOffPartnerWithdrawalsProcessorTest {
 
     private final InternalApiClient internalApiClient = mock(InternalApiClient.class);
-    private final StrikeOffPartnerObjectionsProcessor processor =
-            new StrikeOffPartnerObjectionsProcessor(internalApiClient);
+    private final StrikeOffPartnerWithdrawalsProcessor processor =
+            new StrikeOffPartnerWithdrawalsProcessor(internalApiClient);
 
     @Test
-    void supportsObjections_butNotWithdrawals() {
-        assertTrue(processor.supports(EventType.OBJECTION));
-        assertFalse(processor.supports(EventType.WITHDRAWAL));
+    void supportsWithdrawals_butNotObjections() {
+        assertTrue(processor.supports(EventType.WITHDRAWAL));
+        assertFalse(processor.supports(EventType.OBJECTION));
     }
 
     @Test
-    void doProcess_validMessage_callsApiAndDoesNotThrow() throws Exception {
-        stubGetObjection(new ApiResponse<>(200, null, new BaseObjectionResponse().objectionId("objection-001").processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED)));
-
-        assertDoesNotThrow(() -> processor.process(validMessage()));
-    }
-
-    @Test
-    void doProcess_apiErrorResponse_isWrappedAsRuntimeException() throws Exception {
-        GetObjection get = mock(GetObjection.class);
-        when(get.execute()).thenThrow(mock(IllegalStateException.class));
-        stubHandlerReturning(get);
-        var message = validMessage();
-
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> processor.process(message));
-        assertTrue(ex.getMessage().contains("Retryable error"));
-    }
-
-
-    @Test
-    void doProcess_apiError500_isRetryableRuntimeException() throws Exception {
+    void doProcess_apiError500_isRetryable() throws Exception {
         ApiErrorResponseException apiEx = mock(ApiErrorResponseException.class);
         when(apiEx.getStatusCode()).thenReturn(500);
-
-        GetObjection get = mock(GetObjection.class);
-        when(get.execute()).thenThrow(apiEx);
-        stubHandlerReturning(get);
-        StrikeOffPartnerObjections message = validMessage();
+        stubWithdrawalCallThrowing(apiEx);
+        StrikeOffPartnerObjections message = withdrawalMessage();
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> processor.process(message));
@@ -78,11 +55,8 @@ class StrikeOffPartnerObjectionsProcessorTest {
     void doProcess_apiError404_isNonRetryable() throws Exception {
         ApiErrorResponseException apiEx = mock(ApiErrorResponseException.class);
         when(apiEx.getStatusCode()).thenReturn(404);
-
-        GetObjection get = mock(GetObjection.class);
-        when(get.execute()).thenThrow(apiEx);
-        stubHandlerReturning(get);
-        StrikeOffPartnerObjections message = validMessage();
+        stubWithdrawalCallThrowing(apiEx);
+        StrikeOffPartnerObjections message = withdrawalMessage();
 
         InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
@@ -92,10 +66,8 @@ class StrikeOffPartnerObjectionsProcessorTest {
 
     @Test
     void doProcess_uriValidationError_isNonRetryable() throws Exception {
-        GetObjection get = mock(GetObjection.class);
-        when(get.execute()).thenThrow(mock(URIValidationException.class));
-        stubHandlerReturning(get);
-        StrikeOffPartnerObjections message = validMessage();
+        stubWithdrawalCallThrowing(mock(URIValidationException.class));
+        StrikeOffPartnerObjections message = withdrawalMessage();
 
         InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
@@ -104,51 +76,61 @@ class StrikeOffPartnerObjectionsProcessorTest {
     }
 
     @Test
-    void doProcess_ShouldThrowDuplicateRecordException_WhenObjectionAlreadyProcessed() throws Exception {
+    void doProcess_ShouldThrowDuplicateRecordException_WhenWithdrawalAlreadyProcessed() throws Exception {
         // Given
         StrikeOffPartnerObjections message = new StrikeOffPartnerObjections();
         message.setEventId("event-123");
 
-        BaseObjectionResponse objectionResponse = new BaseObjectionResponse();
-        objectionResponse.setObjectionId("objection-123");
-        objectionResponse.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
+        WithdrawAllObjectionsResponse withdrawalResponse =
+                new WithdrawAllObjectionsResponse();
+        withdrawalResponse.setWithdrawalId("withdrawal-123");
+        withdrawalResponse.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
 
-        ApiResponse<BaseObjectionResponse> apiResponse = mock(ApiResponse.class);
-        when(apiResponse.getData()).thenReturn(objectionResponse);
+        ApiResponse<WithdrawAllObjectionsResponse> apiResponse =
+                mock(ApiResponse.class);
+
+        when(apiResponse.getData()).thenReturn(withdrawalResponse);
         when(apiResponse.getStatusCode()).thenReturn(200);
-
-        stubGetObjection(apiResponse);
+        stubWithdrawal(apiResponse);
 
         // When / Then
         DuplicateRecordException exception = assertThrows(
                 DuplicateRecordException.class,
                 () -> processor.doProcess(message));
 
-        assertTrue(exception.getMessage().contains("Duplicate/complete Objection skipped"));
-    }
-    // --- helpers ---
-    private void stubGetObjection(ApiResponse<BaseObjectionResponse> response) throws Exception {
-        GetObjection get = mock(GetObjection.class);
-        when(get.execute()).thenReturn(response);
-        stubHandlerReturning(get);
+        assertTrue(exception.getMessage()
+                .contains("Duplicate/complete Withdrawal skipped"));
     }
 
-    private void stubHandlerReturning(GetObjection get) {
+    // --- helpers ---
+    private void stubWithdrawal(ApiResponse<WithdrawAllObjectionsResponse> response) throws Exception {
+        GetAllWithdrawals get = mock(GetAllWithdrawals.class);
+        when(get.execute()).thenReturn(response);
+
         PrivateStrikeOffPartnerObjectionsResourceHandler handler =
                 mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
         when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
-        when(handler.getObjection(anyString())).thenReturn(get);
+        when(handler.getAllWithdrawals(anyString())).thenReturn(get);
+    }
+    private void stubWithdrawalCallThrowing(Exception toThrow) throws Exception {
+        GetAllWithdrawals get = mock(GetAllWithdrawals.class);
+        when(get.execute()).thenThrow(toThrow);
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
+        when(handler.getAllWithdrawals(anyString())).thenReturn(get);
     }
 
-    private StrikeOffPartnerObjections validMessage() {
+    private StrikeOffPartnerObjections withdrawalMessage() {
         return StrikeOffPartnerObjections.newBuilder()
-                .setEventId("evt-001")
+                .setEventId("evt-002")
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
-                .setEventType(EventType.OBJECTION)
                 .setCompanyNumber("12345678")
+                .setEventType(EventType.WITHDRAWAL)
                 .setPartnerOrganisation("TEST_ORG")
-                .setStrikeOffEventId("strike-001")
+                .setStrikeOffEventId("strike-002")
                 .build();
     }
 }

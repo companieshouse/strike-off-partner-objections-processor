@@ -1,7 +1,11 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
+import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.error.ApiErrorResponseException;
+import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 /**
@@ -25,6 +29,13 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
  * is thrown.
  */
 public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
+
+    protected final InternalApiClient internalApiClient;
+
+    protected AbstractStrikeOffPartnerObjectionsProcessor(InternalApiClient internalApiClient) {
+        this.internalApiClient = internalApiClient;
+    }
+
     public final void process(StrikeOffPartnerObjections message) {
         validate(message);
 
@@ -38,14 +49,65 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
         if (message == null || message.getEventType() == null) {
             throw new InvalidStrikeOffMessageException("Missing eventType");
         }
-        if (message.getEventId() == null || message.getEventId().isBlank()) {
-            throw new InvalidStrikeOffMessageException("Missing eventId");
-        }
-        if (message.getPartnerOrganisation() == null || message.getPartnerOrganisation().isBlank()) {
-            throw new InvalidStrikeOffMessageException("Missing PartnerOrganisation");
+        validateNotBlank(message.getEventId(), "eventId");
+        validateNotBlank(message.getPartnerOrganisation(), "PartnerOrganisation");
+        validateNotBlank(message.getCompanyNumber(), "Company number");
+        validateNotBlank(message.getStrikeOffEventId(), "StrikeOffEventId");
+    }
+
+    private void validateNotBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidStrikeOffMessageException("Missing " + fieldName);
         }
     }
 
     protected abstract boolean supports(EventType eventType);
-    protected abstract void doProcess(StrikeOffPartnerObjections message);
+    protected abstract void doProcess(StrikeOffPartnerObjections message) throws DuplicateRecordException;
+
+    /**
+     * Builds a resource URI shared by concrete processors.
+     * @param message         the event message
+     * @param resourceSegment the resource path segment (e.g. {@code "strike-off-partner-objections"})
+     * @return the constructed resource URI
+     * */
+    protected String buildResourceUri(StrikeOffPartnerObjections message, String resourceSegment) {
+        return String.format("/company/%s/%s/%s", message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId());
+    }
+
+    /**
+     * Maps a checked API exception to a runtime exception.
+     * <p>Wrapped in a plain {@link RuntimeException} so that transient/technical API failures
+     * remain retryable (i.e. NOT excluded by the Kafka retry configuration).
+     * @param eventId the event id for context
+     * @param ex      the underlying API exception
+     * @return a runtime exception to propagate
+     **/
+    protected RuntimeException mapApiException(String eventId, Exception ex) {
+        if (ex instanceof URIValidationException) {
+            return new InvalidStrikeOffMessageException(
+                    "Non-retryable URI validation error for eventId=" + eventId, ex);
+        }
+
+        if (ex instanceof ApiErrorResponseException apiEx) {
+            int status = apiEx.getStatusCode();
+            // 4xx (except 429) => permanent/client error => do not retry
+            if (status >= 400 && status < 500 && status != 429) {
+                return new InvalidStrikeOffMessageException(
+                        "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
+            }
+            // 5xx, 429 => transient => retry
+            return new RuntimeException(
+                    "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
+        }
+
+        // Unknown/technical failure => retry
+        return new RuntimeException(
+                "Retryable error for eventId=" + eventId, ex);
+    }
+
+
+    protected boolean isDuplicateRecord(String status,
+                                        String processedStatus) {
+        return processedStatus != null && processedStatus.equalsIgnoreCase(status);
+    }
 }

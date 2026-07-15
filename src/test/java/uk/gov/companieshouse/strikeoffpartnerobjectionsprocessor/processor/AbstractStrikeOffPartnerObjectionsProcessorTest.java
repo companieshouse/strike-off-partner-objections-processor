@@ -2,11 +2,14 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +20,7 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
     @BeforeEach
     void setUp() {
         // Minimal concrete subclass that supports OBJECTION
-        processor = new AbstractStrikeOffPartnerObjectionsProcessor() {
+        processor = new AbstractStrikeOffPartnerObjectionsProcessor(Mockito.mock(InternalApiClient.class)) {
             @Override
             protected boolean supports(EventType eventType) {
                 return eventType == EventType.OBJECTION;
@@ -93,6 +96,26 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
     }
 
     @Test
+    void validate_blankCompanyNumber_throwsInvalidMessage() {
+        StrikeOffPartnerObjections msg = validMessage();
+        msg.setCompanyNumber("  ");
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(msg));
+        assertTrue(ex.getMessage().contains("Company number"));
+    }
+
+    @Test
+    void validate_blankStrikeOffEventId_throwsInvalidMessage() {
+        StrikeOffPartnerObjections msg = validMessage();
+        msg.setStrikeOffEventId("  ");
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(msg));
+        assertTrue(ex.getMessage().contains("StrikeOffEventId"));
+    }
+
+    @Test
     void process_unsupportedEventType_throwsRuntimeException() {
         StrikeOffPartnerObjections msg = validMessage();
         msg.setEventType(EventType.WITHDRAWAL);
@@ -102,11 +125,19 @@ class AbstractStrikeOffPartnerObjectionsProcessorTest {
         assertTrue(ex.getMessage().contains("unsupported event type"));
     }
 
+    @Test
+    void buildResourceUri_withDifferentSegment() {
+        StrikeOffPartnerObjections msg = validMessage();
+        assertEquals("/company/12345678/strike-off-partner-withdrawals/strike-001",
+                processor.buildResourceUri(msg, "strike-off-partner-withdrawals"));
+    }
+
     private StrikeOffPartnerObjections validMessage() {
         return StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-001")
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
+                .setCompanyNumber("12345678")
                 .setEventType(EventType.OBJECTION)
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-001")
