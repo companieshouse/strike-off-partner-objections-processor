@@ -49,13 +49,13 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
         if (message == null || message.getEventType() == null) {
             throw new InvalidStrikeOffMessageException("Missing eventType");
         }
-        requireNotBlank(message.getEventId(), "eventId");
-        requireNotBlank(message.getPartnerOrganisation(), "PartnerOrganisation");
-        requireNotBlank(message.getCompanyNumber(), "Company number");
-        requireNotBlank(message.getStrikeOffEventId(), "StrikeOffEventId");
+        validateNotBlank(message.getEventId(), "eventId");
+        validateNotBlank(message.getPartnerOrganisation(), "PartnerOrganisation");
+        validateNotBlank(message.getCompanyNumber(), "Company number");
+        validateNotBlank(message.getStrikeOffEventId(), "StrikeOffEventId");
     }
 
-    private void requireNotBlank(String value, String fieldName) {
+    private void validateNotBlank(String value, String fieldName) {
         if (value == null || value.isBlank()) {
             throw new InvalidStrikeOffMessageException("Missing " + fieldName);
         }
@@ -71,7 +71,7 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
      * @return the constructed resource URI
      * */
     protected String buildResourceUri(StrikeOffPartnerObjections message, String resourceSegment) {
-        return String.format("/company/%s/%s/%s", resourceSegment, message.getCompanyNumber(), message.getStrikeOffEventId());
+        return String.format("/company/%s/%s/%s", message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId());
     }
 
     /**
