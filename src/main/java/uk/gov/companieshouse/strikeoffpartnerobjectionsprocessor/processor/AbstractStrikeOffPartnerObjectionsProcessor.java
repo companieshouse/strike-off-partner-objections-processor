@@ -71,7 +71,7 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
      * @return the constructed resource URI
      * */
     protected String buildResourceUri(StrikeOffPartnerObjections message, String resourceSegment) {
-        return "/company/" + message.getCompanyNumber() + "/" + resourceSegment + "/" + message.getStrikeOffEventId();
+        return String.format("/company/%s/%s/%s", resourceSegment, message.getCompanyNumber(), message.getStrikeOffEventId());
     }
 
     /**
@@ -109,6 +109,5 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
     protected boolean isDuplicateRecord(String status,
                                         String processedStatus) {
         return processedStatus != null && processedStatus.equalsIgnoreCase(status);
-
     }
 }
