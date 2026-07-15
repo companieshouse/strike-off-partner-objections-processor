@@ -78,7 +78,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         catch (DuplicateRecordException duplicateRecordException) {
             LOG.info(duplicateRecordException.getMessage(), logMap);
         } catch (Exception exception){
-            LOG.error("Error encountered in StrikeOffPartnerObjectionsKafkaConsumer: ", exception, logMap);
+            LOG.error("Error encountered in StrikeOffPartnerObjectionsKafkaConsumer: " + exception.getMessage(), exception, logMap);
             throw exception;
         }
     }
