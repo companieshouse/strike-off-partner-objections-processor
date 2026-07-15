@@ -3,10 +3,12 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
+import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
 
@@ -35,8 +37,15 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing objection event with ID: " + message.getEventId());
-        var response = getObjectionDetails(message);
-        LOG.info("Objection details fetched: objectionId=" + response.getObjectionId());
+        var objection = getObjectionDetails(message);
+        if (isDuplicateRecord(
+                objection.getProcessingStatus().getValue(),
+                ObjectionProcessingStatus.OBJECTION_PROCESSING.getValue())) {
+            throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + objection.getObjectionId()
+                    + ", status=" + objection.getProcessingStatus().getValue());
+        }
+
+        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
     }
 
     private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjections message) {

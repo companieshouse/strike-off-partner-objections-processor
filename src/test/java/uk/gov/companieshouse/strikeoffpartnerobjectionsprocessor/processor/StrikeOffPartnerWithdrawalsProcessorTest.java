@@ -9,8 +9,12 @@ import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.api.handler.objections.PrivateStrikeOffPartnerObjectionsResourceHandler;
 import uk.gov.companieshouse.api.handler.objections.request.GetAllWithdrawals;
+import uk.gov.companieshouse.api.model.ApiResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -71,8 +75,43 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         assertTrue(ex.getMessage().contains("Non-retryable URI validation error"));
     }
 
-    // --- helpers ---
+    @Test
+    void doProcess_ShouldThrowDuplicateRecordException_WhenWithdrawalAlreadyProcessed() throws Exception {
+        // Given
+        StrikeOffPartnerObjections message = new StrikeOffPartnerObjections();
+        message.setEventId("event-123");
 
+        WithdrawAllObjectionsResponse withdrawalResponse =
+                new WithdrawAllObjectionsResponse();
+        withdrawalResponse.setWithdrawalId("withdrawal-123");
+        withdrawalResponse.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+
+        ApiResponse<WithdrawAllObjectionsResponse> apiResponse =
+                mock(ApiResponse.class);
+
+        when(apiResponse.getData()).thenReturn(withdrawalResponse);
+        when(apiResponse.getStatusCode()).thenReturn(200);
+        stubWithdrawal(apiResponse);
+
+        // When / Then
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.doProcess(message));
+
+        assertTrue(exception.getMessage()
+                .contains("Duplicate/complete Withdrawal skipped"));
+    }
+
+    // --- helpers ---
+    private void stubWithdrawal(ApiResponse<WithdrawAllObjectionsResponse> response) throws Exception {
+        GetAllWithdrawals get = mock(GetAllWithdrawals.class);
+        when(get.execute()).thenReturn(response);
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
+        when(handler.getAllWithdrawals(anyString())).thenReturn(get);
+    }
     private void stubWithdrawalCallThrowing(Exception toThrow) throws Exception {
         GetAllWithdrawals get = mock(GetAllWithdrawals.class);
         when(get.execute()).thenThrow(toThrow);

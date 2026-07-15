@@ -5,6 +5,7 @@ import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 /**
@@ -61,7 +62,7 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
     }
 
     protected abstract boolean supports(EventType eventType);
-    protected abstract void doProcess(StrikeOffPartnerObjections message);
+    protected abstract void doProcess(StrikeOffPartnerObjections message) throws DuplicateRecordException;
 
     /**
      * Builds a resource URI shared by concrete processors.
@@ -102,5 +103,12 @@ public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
         // Unknown/technical failure => retry
         return new RuntimeException(
                 "Retryable error for eventId=" + eventId, ex);
+    }
+
+
+    protected boolean isDuplicateRecord(String status,
+                                        String processedStatus) {
+        return processedStatus != null && processedStatus.equalsIgnoreCase(status);
+
     }
 }

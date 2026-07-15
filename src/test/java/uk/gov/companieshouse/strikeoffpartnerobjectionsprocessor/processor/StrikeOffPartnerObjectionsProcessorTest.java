@@ -10,8 +10,10 @@ import uk.gov.companieshouse.api.handler.objections.PrivateStrikeOffPartnerObjec
 import uk.gov.companieshouse.api.handler.objections.request.GetObjection;
 import uk.gov.companieshouse.api.model.ApiResponse;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
+import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -37,7 +39,7 @@ class StrikeOffPartnerObjectionsProcessorTest {
 
     @Test
     void doProcess_validMessage_callsApiAndDoesNotThrow() throws Exception {
-        stubGetObjection(new ApiResponse<>(200, null, new BaseObjectionResponse().objectionId("objection-001")));
+        stubGetObjection(new ApiResponse<>(200, null, new BaseObjectionResponse().objectionId("objection-001").processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED)));
 
         assertDoesNotThrow(() -> processor.process(validMessage()));
     }
@@ -99,6 +101,30 @@ class StrikeOffPartnerObjectionsProcessorTest {
                 () -> processor.process(message));
 
         assertTrue(ex.getMessage().contains("Non-retryable URI validation error"));
+    }
+
+    @Test
+    void doProcess_ShouldThrowDuplicateRecordException_WhenObjectionAlreadyProcessed() throws Exception {
+        // Given
+        StrikeOffPartnerObjections message = new StrikeOffPartnerObjections();
+        message.setEventId("event-123");
+
+        BaseObjectionResponse objectionResponse = new BaseObjectionResponse();
+        objectionResponse.setObjectionId("objection-123");
+        objectionResponse.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
+
+        ApiResponse<BaseObjectionResponse> apiResponse = mock(ApiResponse.class);
+        when(apiResponse.getData()).thenReturn(objectionResponse);
+        when(apiResponse.getStatusCode()).thenReturn(200);
+
+        stubGetObjection(apiResponse);
+
+        // When / Then
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.doProcess(message));
+
+        assertTrue(exception.getMessage().contains("Duplicate/complete Objection skipped"));
     }
     // --- helpers ---
     private void stubGetObjection(ApiResponse<BaseObjectionResponse> response) throws Exception {

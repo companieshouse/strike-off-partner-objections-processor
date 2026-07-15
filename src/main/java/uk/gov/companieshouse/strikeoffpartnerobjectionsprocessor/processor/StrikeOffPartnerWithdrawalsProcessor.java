@@ -3,10 +3,12 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
 
@@ -35,8 +37,14 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing withdrawal event with ID: " + message.getEventId());
-        var response = getWithdrawalDetails(message);
-        LOG.info("Withdrawal details fetched: withdrawalId=" + response.getWithdrawalId());
+        var withdrawalDetails = getWithdrawalDetails(message);
+        if (isDuplicateRecord(
+                withdrawalDetails.getProcessingStatus().getValue(),
+                WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING.getValue())) {
+            throw new DuplicateRecordException("Duplicate/complete Withdrawal skipped: strikeOffEventId=" + withdrawalDetails.getWithdrawalId()
+                    + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
+        }
+        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
     }
 
     private WithdrawAllObjectionsResponse getWithdrawalDetails(StrikeOffPartnerObjections message) {
