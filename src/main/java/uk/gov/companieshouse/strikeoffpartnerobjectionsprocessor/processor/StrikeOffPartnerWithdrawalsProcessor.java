@@ -23,7 +23,7 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
 public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
-    private static final String RESOURCE_SEGMENT = "strike-off-partner-withdrawals";
+    private static final String RESOURCE_SEGMENT = "strike-off-partner-objections-withdrawals";
 
     protected StrikeOffPartnerWithdrawalsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient);
