@@ -28,11 +28,11 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
  * {@link uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException}
  * is thrown.
  */
-public abstract class AbstractStrikeOffPartnerObjectionsProcessor {
+public abstract class AbstractStrikeOffPartnerEventsProcessor {
 
     protected final InternalApiClient internalApiClient;
 
-    protected AbstractStrikeOffPartnerObjectionsProcessor(InternalApiClient internalApiClient) {
+    protected AbstractStrikeOffPartnerEventsProcessor(InternalApiClient internalApiClient) {
         this.internalApiClient = internalApiClient;
     }
 

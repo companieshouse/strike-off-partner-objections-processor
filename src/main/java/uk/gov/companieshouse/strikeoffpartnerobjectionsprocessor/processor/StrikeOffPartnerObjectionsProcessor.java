@@ -17,10 +17,10 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  *
  * <p>This implementation handles only {@link EventType#OBJECTION} messages and
  * performs objection-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerObjectionsProcessor#process(StrikeOffPartnerObjections)}.
+ * {@link AbstractStrikeOffPartnerEventsProcessor#process(StrikeOffPartnerObjections)}.
  */
 @Component
-public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerObjectionsProcessor {
+public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
     private static final String RESOURCE_SEGMENT = "strike-off-partner-objections";

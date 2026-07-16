@@ -13,14 +13,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AbstractStrikeOffPartnerObjectionsProcessorTest {
+class AbstractStrikeOffPartnerEventsProcessorTest {
 
-    private AbstractStrikeOffPartnerObjectionsProcessor processor;
+    private AbstractStrikeOffPartnerEventsProcessor processor;
 
     @BeforeEach
     void setUp() {
         // Minimal concrete subclass that supports OBJECTION
-        processor = new AbstractStrikeOffPartnerObjectionsProcessor(Mockito.mock(InternalApiClient.class)) {
+        processor = new AbstractStrikeOffPartnerEventsProcessor(Mockito.mock(InternalApiClient.class)) {
             @Override
             protected boolean supports(EventType eventType) {
                 return eventType == EventType.OBJECTION;
