@@ -51,7 +51,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
         LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
 
         // Update status to objection-processing
-        updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
+        updateObjectionStatus(message);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
     }
 
@@ -70,18 +70,19 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
         }
     }
 
-    private void updateObjectionStatus(StrikeOffPartnerObjections message, 
-                                       ObjectionProcessingStatus targetStatus) {
+    private void updateObjectionStatus(StrikeOffPartnerObjections message) {
         String uri = buildResourceUri(message, RESOURCE_SEGMENT);
         try {
             UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
-            request.setProcessingStatus(targetStatus);
-            
+            request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
+
             internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .updateObjectionStatus(uri, request)
                     .execute();
-            LOG.info("Successfully updated objection status to " + targetStatus + " for eventId=" + message.getEventId());
+            LOG.info("Successfully updated objection status to "
+                    + ObjectionProcessingStatus.OBJECTION_PROCESSING
+                    + " for eventId=" + message.getEventId());
         } catch (Exception e) {
             throw mapApiException(message.getEventId(), e);
         }
