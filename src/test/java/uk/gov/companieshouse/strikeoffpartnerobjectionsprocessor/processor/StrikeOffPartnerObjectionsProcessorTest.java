@@ -8,6 +8,7 @@ import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.api.handler.objections.PrivateStrikeOffPartnerObjectionsResourceHandler;
 import uk.gov.companieshouse.api.handler.objections.request.GetObjection;
+import uk.gov.companieshouse.api.handler.objections.request.UpdateObjectionStatus;
 import uk.gov.companieshouse.api.model.ApiResponse;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class StrikeOffPartnerObjectionsProcessorTest {
@@ -37,9 +39,23 @@ class StrikeOffPartnerObjectionsProcessorTest {
         assertFalse(processor.supports(EventType.WITHDRAWAL));
     }
 
-    @Test
+      @Test
     void doProcess_validMessage_callsApiAndDoesNotThrow() throws Exception {
-        stubGetObjection(new ApiResponse<>(200, null, new BaseObjectionResponse().objectionId("objection-001").processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED)));
+        BaseObjectionResponse response = new BaseObjectionResponse()
+                .objectionId("objection-001")
+                .processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
+
+        GetObjection getObjection = mock(GetObjection.class);
+        when(getObjection.execute()).thenReturn(new ApiResponse<>(200, null, response));
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
+        when(handler.getObjection(anyString())).thenReturn(getObjection);
+
+        UpdateObjectionStatus updateStatus = mock(UpdateObjectionStatus.class);
+        when(updateStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
+        when(handler.updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(updateStatus);
 
         assertDoesNotThrow(() -> processor.process(validMessage()));
     }
@@ -113,6 +129,7 @@ class StrikeOffPartnerObjectionsProcessorTest {
         objectionResponse.setObjectionId("objection-123");
         objectionResponse.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
 
+        @SuppressWarnings("unchecked")
         ApiResponse<BaseObjectionResponse> apiResponse = mock(ApiResponse.class);
         when(apiResponse.getData()).thenReturn(objectionResponse);
         when(apiResponse.getStatusCode()).thenReturn(200);
@@ -126,11 +143,43 @@ class StrikeOffPartnerObjectionsProcessorTest {
 
         assertTrue(exception.getMessage().contains("Duplicate/complete Objection skipped"));
     }
-    // --- helpers ---
+
+    @Test
+    void doProcess_ShouldCallUpdateStatusAfterSuccessfulFetch() throws Exception {
+        // Given - a successfully fetched objection that's not yet processing
+        BaseObjectionResponse response = new BaseObjectionResponse()
+                .objectionId("objection-002")
+                .processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
+
+        GetObjection getObjection = mock(GetObjection.class);
+        when(getObjection.execute()).thenReturn(new ApiResponse<>(200, null, response));
+        when(handler.getObjection(anyString())).thenReturn(getObjection);
+
+        UpdateObjectionStatus updateStatus = mock(UpdateObjectionStatus.class);
+        when(updateStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
+        when(handler.updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(updateStatus);
+
+        // When
+        processor.process(validMessage());
+
+        // Then - verify both methods were called
+        verify(handler).getObjection(anyString());
+        verify(handler).updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any());
+    }
+     // --- helpers ---
+
     private void stubGetObjection(ApiResponse<BaseObjectionResponse> response) throws Exception {
         GetObjection get = mock(GetObjection.class);
         when(get.execute()).thenReturn(response);
-        stubHandlerReturning(get);
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
+        when(handler.getObjection(anyString())).thenReturn(get);
     }
 
     private void stubHandlerReturning(GetObjection get) {
