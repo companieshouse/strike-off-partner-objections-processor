@@ -207,21 +207,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
 
     // --- helpers ---
 
-    private void stubWithdrawalCallThrowing(Exception toThrow) throws Exception {
-        GetAllWithdrawals get = mock(GetAllWithdrawals.class);
-        when(get.execute()).thenThrow(toThrow);
-
-        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
-                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
-        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
-        when(handler.getAllWithdrawals(anyString())).thenReturn(get);
-    }
-
-    private PrivateStrikeOffPartnerObjectionsResourceHandler stubGetOnly(
-            WithdrawAllObjectionsResponse responseBody) throws Exception {
-        GetAllWithdrawals get = mock(GetAllWithdrawals.class);
-        when(get.execute()).thenReturn(new ApiResponse<>(200, null, responseBody));
-
+    private PrivateStrikeOffPartnerObjectionsResourceHandler stubHandler(GetAllWithdrawals get) {
         PrivateStrikeOffPartnerObjectionsResourceHandler handler =
                 mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
         when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
@@ -229,18 +215,25 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         return handler;
     }
 
-    private PrivateStrikeOffPartnerObjectionsResourceHandler stubGetAndUpdateSuccess(
+    private void stubWithdrawalCallThrowing(Exception toThrow) throws Exception {
+        GetAllWithdrawals get = mock(GetAllWithdrawals.class);
+        when(get.execute()).thenThrow(toThrow);
+        stubHandler(get);
+    }
+
+    private PrivateStrikeOffPartnerObjectionsResourceHandler stubGetOnly(
             WithdrawAllObjectionsResponse responseBody) throws Exception {
         GetAllWithdrawals get = mock(GetAllWithdrawals.class);
         when(get.execute()).thenReturn(new ApiResponse<>(200, null, responseBody));
+        return stubHandler(get);
+    }
+
+    private PrivateStrikeOffPartnerObjectionsResourceHandler stubGetAndUpdateSuccess(
+            WithdrawAllObjectionsResponse responseBody) throws Exception {
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler = stubGetOnly(responseBody);
 
         UpdateWithdrawalStatus update = mock(UpdateWithdrawalStatus.class);
         when(update.execute()).thenReturn(new ApiResponse<>(204, null, null));
-
-        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
-                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
-        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
-        when(handler.getAllWithdrawals(anyString())).thenReturn(get);
         when(handler.updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class))).thenReturn(update);
         return handler;
     }
@@ -250,14 +243,10 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
             Exception toThrow) throws Exception {
         GetAllWithdrawals get = mock(GetAllWithdrawals.class);
         when(get.execute()).thenReturn(new ApiResponse<>(200, null, responseBody));
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler = stubHandler(get);
 
         UpdateWithdrawalStatus update = mock(UpdateWithdrawalStatus.class);
         when(update.execute()).thenThrow(toThrow);
-
-        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
-                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
-        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
-        when(handler.getAllWithdrawals(anyString())).thenReturn(get);
         when(handler.updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class))).thenReturn(update);
     }
 
