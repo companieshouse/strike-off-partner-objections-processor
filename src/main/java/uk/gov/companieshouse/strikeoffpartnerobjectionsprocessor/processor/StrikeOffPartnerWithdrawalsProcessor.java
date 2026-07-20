@@ -10,6 +10,7 @@ import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
 
@@ -42,10 +43,19 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
 
         LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
 
-        // Verify the current status is WITHDRAWAL_REQUESTED before updating to prevent invalid transitions
-        // This safeguard reduces the risk of status race conditions when multiple messages are processed concurrently
+        // Idempotent check: if already processing, skip
+        if (isDuplicateRecord(
+                withdrawalDetails.getProcessingStatus().getValue(),
+                WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING.getValue())) {
+            throw new DuplicateRecordException("Duplicate/complete Withdrawal skipped: strikeOffEventId=" + withdrawalDetails.getWithdrawalId()
+                    + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
+        }
+
+        // Verify the current status is WITHDRAWAL_REQUESTED before updating to prevent invalid transitions.
+        // This is a non-retryable guard: any status other than WITHDRAWAL_PROCESSING (duplicate) or
+        // WITHDRAWAL_REQUESTED (expected) represents an unexpected system state that should be investigated.
         if (withdrawalDetails.getProcessingStatus() != WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED) {
-            throw new DuplicateRecordException("Invalid status transition attempted: current status="
+            throw new InvalidStrikeOffMessageException("Invalid status transition attempted: current status="
                     + withdrawalDetails.getProcessingStatus().getValue()
                     + ", expected=WITHDRAWAL_REQUESTED for withdrawalId=" + withdrawalDetails.getWithdrawalId());
         }
