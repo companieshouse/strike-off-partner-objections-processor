@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.logging.Logger;
@@ -38,13 +39,20 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing withdrawal event with ID: " + message.getEventId());
         var withdrawalDetails = getWithdrawalDetails(message);
+
+        // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
                 withdrawalDetails.getProcessingStatus().getValue(),
                 WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING.getValue())) {
             throw new DuplicateRecordException("Duplicate/complete Withdrawal skipped: strikeOffEventId=" + withdrawalDetails.getWithdrawalId()
                     + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
         }
+
         LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+
+        // Update status to withdrawal-processing (SDK support pending)
+        updateWithdrawalStatus(message);
+        LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
     }
 
     private WithdrawAllObjectionsResponse getWithdrawalDetails(StrikeOffPartnerObjections message) {
@@ -61,5 +69,23 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
         } catch (Exception e) {
             throw mapApiException(message.getEventId(), e);
         }
+    }
+
+    private void updateWithdrawalStatus(StrikeOffPartnerObjections message) {
+         String uri = buildResourceUri(message, RESOURCE_SEGMENT);
+         try {
+             UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
+             request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+
+             internalApiClient
+                     .privateStrikeOffPartnerObjectionsResourceHandler()
+                     .updateWithdrawalStatus(uri, request)
+                     .execute();
+             LOG.info("Successfully updated withdrawal status to "
+                     + WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING
+                     + " for eventId=" + message.getEventId());
+         } catch (Exception e) {
+             throw mapApiException(message.getEventId(), e);
+         }
     }
 }
