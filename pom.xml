@@ -28,7 +28,7 @@
         <api-sdk-manager-java-library.version>3.0.25</api-sdk-manager-java-library.version>
         <!-- Override vulnerable Tomcat version -->
         <tomcat.version>11.0.24</tomcat.version>
-        <private-api-sdk-java.version>7.0.14</private-api-sdk-java.version>
+        <private-api-sdk-java.version>7.0.16</private-api-sdk-java.version>
         <opentelemetry-semconv.version>1.42.0</opentelemetry-semconv.version>
 
         <!--sonar configuration-->
