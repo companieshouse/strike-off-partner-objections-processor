@@ -10,6 +10,7 @@ import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
 
@@ -40,6 +41,8 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
         LOG.info("Processing withdrawal event with ID: " + message.getEventId());
         var withdrawalDetails = getWithdrawalDetails(message);
 
+        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+
         // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
                 withdrawalDetails.getProcessingStatus().getValue(),
@@ -48,7 +51,14 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
                     + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
         }
 
-        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        // Verify the current status is WITHDRAWAL_REQUESTED before updating to prevent invalid transitions.
+        // This is a non-retryable guard: any status other than WITHDRAWAL_PROCESSING (duplicate) or
+        // WITHDRAWAL_REQUESTED (expected) represents an unexpected system state that should be investigated.
+        if (withdrawalDetails.getProcessingStatus() != WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED) {
+            throw new InvalidStrikeOffMessageException("Invalid status transition attempted: current status="
+                    + withdrawalDetails.getProcessingStatus().getValue()
+                    + ", expected=WITHDRAWAL_REQUESTED for withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        }
 
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message);
