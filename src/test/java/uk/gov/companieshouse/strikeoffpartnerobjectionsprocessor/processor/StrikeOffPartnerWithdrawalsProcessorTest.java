@@ -1,8 +1,9 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
@@ -37,10 +38,11 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         assertFalse(processor.supports(EventType.OBJECTION));
     }
 
-    @Test
-    void doProcess_apiError500_isRetryable() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {500, 429, 503})
+    void doProcess_retryableApiError_isRetryable(int status) throws Exception {
         ApiErrorResponseException apiEx = mock(ApiErrorResponseException.class);
-        when(apiEx.getStatusCode()).thenReturn(500);
+        when(apiEx.getStatusCode()).thenReturn(status);
         stubWithdrawalCallThrowing(apiEx);
         StrikeOffPartnerObjections message = withdrawalMessage();
 
@@ -51,10 +53,11 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         assertTrue(ex.getMessage().contains("Retryable API error"));
     }
 
-    @Test
-    void doProcess_apiError404_isNonRetryable() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {400, 404})
+    void doProcess_nonRetryableApiError_isNonRetryable(int status) throws Exception {
         ApiErrorResponseException apiEx = mock(ApiErrorResponseException.class);
-        when(apiEx.getStatusCode()).thenReturn(404);
+        when(apiEx.getStatusCode()).thenReturn(status);
         stubWithdrawalCallThrowing(apiEx);
         StrikeOffPartnerObjections message = withdrawalMessage();
 
@@ -63,6 +66,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
 
         assertTrue(ex.getMessage().contains("Non-retryable API error"));
     }
+
 
     @Test
     void doProcess_uriValidationError_isNonRetryable() throws Exception {
@@ -76,6 +80,18 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
     }
 
     @Test
+    void doProcess_unknownException_isRetryable() throws Exception {
+        stubWithdrawalCallThrowing(new IllegalStateException("connection reset"));
+        StrikeOffPartnerObjections message = withdrawalMessage();
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> processor.process(message));
+
+        assertFalse(ex instanceof InvalidStrikeOffMessageException);
+        assertTrue(ex.getMessage().contains("Retryable error"));
+    }
+
+    @Test
     void doProcess_ShouldThrowDuplicateRecordException_WhenWithdrawalAlreadyProcessed() throws Exception {
         // Given
         StrikeOffPartnerObjections message = new StrikeOffPartnerObjections();
@@ -86,6 +102,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         withdrawalResponse.setWithdrawalId("withdrawal-123");
         withdrawalResponse.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
 
+        @SuppressWarnings("unchecked")
         ApiResponse<WithdrawAllObjectionsResponse> apiResponse =
                 mock(ApiResponse.class);
 
