@@ -135,7 +135,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
                 () -> processor.process(message));
 
         assertTrue(exception.getMessage()
-                .contains("Duplicate/complete Withdrawal skipped"));
+                .contains("Invalid status transition attempted"));
         verify(handler, never()).updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class));
     }
 
@@ -203,6 +203,67 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
 
         assertFalse(ex instanceof InvalidStrikeOffMessageException);
         assertTrue(ex.getMessage().contains("Retryable error"));
+    }
+
+    @Test
+    void doProcess_statusIsNotWithdrawalRequested_throwsDuplicateRecordException() throws Exception {
+        WithdrawAllObjectionsResponse response = new WithdrawAllObjectionsResponse()
+                .withdrawalId("withdrawal-already-processing")
+                .processingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+        StrikeOffPartnerObjections message = withdrawalMessage();
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler = stubGetOnly(response);
+
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.process(message));
+
+        assertTrue(exception.getMessage().contains("Invalid status transition attempted"));
+        assertTrue(exception.getMessage().contains("withdrawal-processing"));
+        assertTrue(exception.getMessage().contains("expected=WITHDRAWAL_REQUESTED"));
+        verify(handler, never()).updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class));
+    }
+
+    @Test
+    void doProcess_raceConditionScenario_secondMessageRejectedByStatusCheck() throws Exception {
+        // Simulate two concurrent messages where the first one already updated the status
+        WithdrawAllObjectionsResponse response = new WithdrawAllObjectionsResponse()
+                .withdrawalId("withdrawal-race-condition")
+                .processingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+        StrikeOffPartnerObjections message = withdrawalMessage();
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler = stubGetOnly(response);
+
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.process(message));
+
+        // Verify the error message is specific to the race condition scenario
+        assertTrue(exception.getMessage().contains("Invalid status transition attempted"));
+        assertTrue(exception.getMessage().contains("expected=WITHDRAWAL_REQUESTED"));
+        // Verify updateWithdrawalStatus is never called when status validation fails
+        verify(handler, never()).updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class));
+    }
+
+    @Test
+    void doProcess_statusCheckPassesWithCorrectStatus_updatesSuccessfully() throws Exception {
+        // This test verifies the happy path: correct status allows update to proceed
+        WithdrawAllObjectionsResponse response = new WithdrawAllObjectionsResponse()
+                .withdrawalId("withdrawal-valid-status")
+                .processingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
+        StrikeOffPartnerObjections message = withdrawalMessage();
+
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                stubGetAndUpdateSuccess(response);
+
+        // Should not throw
+        assertDoesNotThrow(() -> processor.process(message));
+
+        // Verify update was called
+        ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
+        verify(handler).updateWithdrawalStatus(anyString(), requestCaptor.capture());
+        assertSame(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING, requestCaptor.getValue().getProcessingStatus());
     }
 
     // --- helpers ---

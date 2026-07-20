@@ -40,15 +40,15 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
         LOG.info("Processing withdrawal event with ID: " + message.getEventId());
         var withdrawalDetails = getWithdrawalDetails(message);
 
-        // Idempotent check: if already processing, skip
-        if (isDuplicateRecord(
-                withdrawalDetails.getProcessingStatus().getValue(),
-                WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING.getValue())) {
-            throw new DuplicateRecordException("Duplicate/complete Withdrawal skipped: strikeOffEventId=" + withdrawalDetails.getWithdrawalId()
-                    + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
-        }
-
         LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+
+        // Verify the current status is WITHDRAWAL_REQUESTED before updating to prevent invalid transitions
+        // This safeguard reduces the risk of status race conditions when multiple messages are processed concurrently
+        if (withdrawalDetails.getProcessingStatus() != WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED) {
+            throw new DuplicateRecordException("Invalid status transition attempted: current status="
+                    + withdrawalDetails.getProcessingStatus().getValue()
+                    + ", expected=WITHDRAWAL_REQUESTED for withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        }
 
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message);
