@@ -4,6 +4,8 @@ import consumer.exception.NonRetryableErrorException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.kafka.annotation.BackOff;
+import org.springframework.kafka.annotation.RetryableTopic;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -13,6 +15,8 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -62,6 +66,31 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
+    }
+
+    @Test
+    void consumeMessage_nullPayload_throwsNonRetryableErrorException() {
+        ConsumerRecord<String, StrikeOffPartnerObjections> nullPayloadRecord =
+                new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, null);
+
+        assertThrows(NonRetryableErrorException.class,
+                () -> consumer.consumeStrikeOffObjectionsMessage(1, nullPayloadRecord));
+    }
+
+    @Test
+    void consumeMessage_retryableTopic_hasExpectedExponentialBackoffConfig() throws NoSuchMethodException {
+        RetryableTopic retryableTopic = StrikeOffPartnerObjectionsKafkaConsumer.class
+                .getMethod("consumeStrikeOffObjectionsMessage", Integer.class, ConsumerRecord.class)
+                .getAnnotation(RetryableTopic.class);
+
+        assertNotNull(retryableTopic);
+        assertEquals("${kafka.max-attempts}", retryableTopic.attempts());
+        assertEquals(NonRetryableErrorException.class, retryableTopic.exclude()[0]);
+
+        BackOff backOff = retryableTopic.backOff();
+        assertEquals("${kafka.backoff-delay}", backOff.delayString());
+        assertEquals("${kafka.backoff-multiplier}", backOff.multiplierString());
+        assertEquals("${kafka.backoff-max-delay}", backOff.maxDelayString());
     }
 
 
