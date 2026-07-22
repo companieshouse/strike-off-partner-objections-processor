@@ -45,7 +45,11 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
 
     @RetryableTopic(
             attempts = "${kafka.max-attempts}",
-            backOff = @BackOff(delayString = "${kafka.backoff-delay}"),
+            backOff = @BackOff(
+                    delayString = "${kafka.backoff-delay}",
+                    multiplierString = "${kafka.backoff-multiplier}",
+                    maxDelayString = "${kafka.backoff-max-delay}"
+            ),
             sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
             dltTopicSuffix = "-error",
             dltStrategy = DltStrategy.FAIL_ON_ERROR,
