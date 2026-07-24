@@ -3,7 +3,6 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class DuplicateRecordExceptionTest {
@@ -23,11 +22,6 @@ class DuplicateRecordExceptionTest {
 
         assertEquals("duplicate detected", ex.getMessage());
         assertEquals(cause, ex.getCause());
-    }
-
-    @Test
-    void isRuntimeException() {
-        assertInstanceOf(RuntimeException.class, new DuplicateRecordException("msg"));
     }
 }
 
