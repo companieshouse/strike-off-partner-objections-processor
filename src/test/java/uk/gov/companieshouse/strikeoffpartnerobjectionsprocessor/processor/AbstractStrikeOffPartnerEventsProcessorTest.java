@@ -192,6 +192,28 @@ class AbstractStrikeOffPartnerEventsProcessorTest {
         assertTrue(result.getMessage().contains("my-event-id"));
     }
 
+    // --- isDuplicateRecord ---
+
+    @Test
+    void isDuplicateRecord_whenStatusMatchesProcessedStatus_returnsTrue() {
+        assertTrue(processor.isDuplicateRecord("PROCESSED", "PROCESSED"));
+    }
+
+    @Test
+    void isDuplicateRecord_isCaseInsensitive_returnsTrue() {
+        assertTrue(processor.isDuplicateRecord("processed", "PROCESSED"));
+    }
+
+    @Test
+    void isDuplicateRecord_whenStatusDoesNotMatch_returnsFalse() {
+        assertFalse(processor.isDuplicateRecord("PROCESSED", "PENDING"));
+    }
+
+    @Test
+    void isDuplicateRecord_whenProcessedStatusIsNull_returnsFalse() {
+        assertFalse(processor.isDuplicateRecord("PROCESSED", null));
+    }
+
     private StrikeOffPartnerObjections validMessage() {
         return StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-001")
