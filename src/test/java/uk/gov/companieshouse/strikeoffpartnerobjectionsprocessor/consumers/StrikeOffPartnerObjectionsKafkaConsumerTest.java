@@ -86,6 +86,26 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         verify(processorDispatcher).dispatch(event);
     }
 
+    @Test
+    void consumeMessage_nullPayload_throwsNonRetryableErrorException() {
+        ConsumerRecord<String, StrikeOffPartnerObjections> recordWithNullPayload =
+                new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, null);
+
+        assertThrows(NonRetryableErrorException.class,
+                () -> consumer.consumeStrikeOffObjectionsMessage(1, recordWithNullPayload));
+    }
+
+    @Test
+    void consumeMessage_eventWithNullEventId_usesUnknownFallbackAndDelegates() {
+        StrikeOffPartnerObjections event = new StrikeOffPartnerObjections();
+        // eventId deliberately left null to exercise the "unknown" fallback at line 69
+        ConsumerRecord<String, StrikeOffPartnerObjections> recordWithNullEventId =
+                new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, event);
+
+        assertDoesNotThrow(() -> consumer.consumeStrikeOffObjectionsMessage(1, recordWithNullEventId));
+        verify(processorDispatcher).dispatch(event);
+    }
+
     private ConsumerRecord<String, StrikeOffPartnerObjections> triggerObjectionEvent() {
         StrikeOffPartnerObjections event = StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-001")
