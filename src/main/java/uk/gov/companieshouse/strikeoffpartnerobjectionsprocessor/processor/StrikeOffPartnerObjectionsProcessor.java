@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
+import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
@@ -38,6 +39,8 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing objection event with ID: " + message.getEventId());
         var objection = getObjectionDetails(message);
+
+        // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
                 objection.getProcessingStatus().getValue(),
                 ObjectionProcessingStatus.OBJECTION_PROCESSING.getValue())) {
@@ -46,6 +49,10 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
         }
 
         LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
+
+        // Update status to objection-processing
+        updateObjectionStatus(message);
+        LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
     }
 
     private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjections message) {
@@ -58,6 +65,24 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
             LOG.info("Fetched objection for objectionId=" + response.getData().getObjectionId()
                     + ", status=" + response.getStatusCode());
             return response.getData();
+        } catch (Exception e) {
+            throw mapApiException(message.getEventId(), e);
+        }
+    }
+
+    private void updateObjectionStatus(StrikeOffPartnerObjections message) {
+        String uri = buildResourceUri(message, RESOURCE_SEGMENT);
+        try {
+            UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
+            request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
+
+            internalApiClient
+                    .privateStrikeOffPartnerObjectionsResourceHandler()
+                    .updateObjectionStatus(uri, request)
+                    .execute();
+            LOG.info("Successfully updated objection status to "
+                    + ObjectionProcessingStatus.OBJECTION_PROCESSING
+                    + " for eventId=" + message.getEventId());
         } catch (Exception e) {
             throw mapApiException(message.getEventId(), e);
         }
