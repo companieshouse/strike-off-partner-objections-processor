@@ -1,21 +1,25 @@
 # Define all hardcoded local variable and local variables looked up from data resources
 locals {
-  stack_name                 = "company-requests" # this must match the stack name the service deploys into
-  name_prefix                = "${local.stack_name}-${var.environment}"
-  global_prefix              = "global-${var.environment}"
-  service_name               = "strike-off-partner-objections-processor"
-  container_port             = "8080" # default Java port to match start script
-  docker_repo                = "strike-off-partner-objections-processor"
-  healthcheck_path           = "/strike-off-partner-objections-processor/healthcheck" #healthcheck path for strike-off-partner-objections-processor service
-  healthcheck_matcher        = "200"
-  application_subnet_ids     = data.aws_subnets.application.ids
-  kms_alias                  = "alias/${var.aws_profile}/environment-services-kms"
-  service_secrets            = jsondecode(data.vault_generic_secret.service_secrets.data_json)
-  stack_secrets              = jsondecode(data.vault_generic_secret.stack_secrets.data_json)
-  application_subnet_pattern = local.stack_secrets["application_subnet_pattern"]
-  use_set_environment_files  = var.use_set_environment_files
-  app_environment_filename   = "strike-off-partner-objections-processor.env"
-  vpc_name                   = local.stack_secrets["vpc_name"]
+  stack_name                              = "company-requests" # this must match the stack name the service deploys into
+  name_prefix                             = "${local.stack_name}-${var.environment}"
+  global_prefix                           = "global-${var.environment}"
+  service_name                            = "strike-off-partner-objections-processor"
+  container_port                          = "8080" # default Java port to match start script
+  docker_repo                             = "strike-off-partner-objections-processor"
+  healthcheck_path                        = "/strike-off-partner-objections-processor/healthcheck"  #healthcheck path for strike-off-partner-objections-processor service
+  healthcheck_matcher                     = "200"
+  application_subnet_ids                  = data.aws_subnets.application.ids
+  kms_alias                               = "alias/${var.aws_profile}/environment-services-kms"
+  service_secrets                         = jsondecode(data.vault_generic_secret.service_secrets.data_json)
+  stack_secrets                           = jsondecode(data.vault_generic_secret.stack_secrets.data_json)
+  application_subnet_pattern              = local.stack_secrets["application_subnet_pattern"]
+  use_set_environment_files               = var.use_set_environment_files
+  app_environment_filename                = "strike-off-partner-objections-processor.env"
+  vpc_name                                = local.stack_secrets["vpc_name"]
+  healthcheck_path_kafka_error_objections = "/kafka-error-consumer/healthcheck"
+  docker_repo_kafka_error                 = "kafka-error-consumer"
+  service_name_kafka_error_objections     = "strike-off-partner-objections-processor-error"
+  app_env_objections_kafka_error          = "strike-off-partner-objections-processor-error.env"
   
   service_secrets_arn_map = {
     for sec in module.secrets.secrets :
