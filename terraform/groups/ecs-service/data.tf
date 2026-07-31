@@ -43,3 +43,7 @@ data "aws_ssm_parameter" "global_secret" {
   for_each = toset(data.aws_ssm_parameters_by_path.global_secrets.names)
   name     = each.key
 }
+
+data "aws_iam_role" "eventbridge_role" {
+  name = "${local.name_prefix}-eventbridge-scheduler-role"
+}
