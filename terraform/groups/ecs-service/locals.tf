@@ -18,7 +18,7 @@ locals {
   vpc_name                                = local.stack_secrets["vpc_name"]
   healthcheck_path_kafka_error_objections = "/kafka-error-consumer/healthcheck"
   docker_repo_kafka_error                 = "kafka-error-consumer"
-  service_name_kafka_error_objections     = "strike-off-partner-objections-processor-error"
+  service_name_kafka_error_objections     = "strike-off-partner-objections-proc-error"
   app_env_objections_kafka_error          = "strike-off-partner-objections-processor-error.env"
   
   service_secrets_arn_map = {
