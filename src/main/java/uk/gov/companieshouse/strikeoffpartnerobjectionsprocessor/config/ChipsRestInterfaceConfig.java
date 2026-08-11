@@ -21,7 +21,7 @@ public class ChipsRestInterfaceConfig {
 
     private ClientHttpRequestInterceptor apiKeyInterceptor() {
         return (request, body, execution) -> {
-            request.getHeaders().set("Authorization", "Bearer " + chipsRestApiKey);
+            request.getHeaders().set("chs-api-key", chipsRestApiKey);
             request.getHeaders().set("Content-Type", "application/json");
             return execution.execute(request, body);
         };
