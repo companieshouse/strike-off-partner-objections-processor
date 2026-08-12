@@ -5,14 +5,13 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
-import uk.gov.companieshouse.logging.Logger;
-import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWALS;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_STATUS;
 
 /**
  * Processor for strike-off partner withdrawal events.
@@ -24,8 +23,6 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
 @Component
 public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
 
-    private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
-    private static final String RESOURCE_SEGMENT = "strike-off-partner-objections-withdrawals";
 
     protected StrikeOffPartnerWithdrawalsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient);
@@ -66,7 +63,7 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
     }
 
     private WithdrawAllObjectionsResponse getWithdrawalDetails(StrikeOffPartnerObjections message) {
-        String uri = buildResourceUri(message, RESOURCE_SEGMENT);
+        String uri = buildResourceUri(message, WITHDRAWALS);
         try {
             var response = internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
@@ -77,12 +74,13 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
                     + ", status=" + response.getStatusCode());
             return response.getData();
         } catch (Exception e) {
+            LOG.info("Failed to update withdrawal status - api url: " + uri);
             throw mapApiException(message.getEventId(), e);
         }
     }
 
     private void updateWithdrawalStatus(StrikeOffPartnerObjections message) {
-         String uri = buildResourceUri(message, RESOURCE_SEGMENT);
+        String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
          try {
              UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
              request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);

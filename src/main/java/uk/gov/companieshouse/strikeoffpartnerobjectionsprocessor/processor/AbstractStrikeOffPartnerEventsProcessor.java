@@ -3,10 +3,15 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
+import uk.gov.companieshouse.logging.Logger;
+import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.INTERNAL_COMPANY_URI;
 
 /**
  * Base processor for {@link StrikeOffPartnerObjections} events using the template method pattern.
@@ -31,6 +36,9 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 public abstract class AbstractStrikeOffPartnerEventsProcessor {
 
     protected final InternalApiClient internalApiClient;
+
+    protected static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
+
 
     protected AbstractStrikeOffPartnerEventsProcessor(InternalApiClient internalApiClient) {
         this.internalApiClient = internalApiClient;
@@ -74,6 +82,12 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
         return String.format("/company/%s/%s/%s", message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId());
     }
 
+    protected String buildInternalStatusUri(StrikeOffPartnerObjections message, String resourceSegment, String statusSegment) {
+        return String.format(INTERNAL_COMPANY_URI + "%s/%s/%s/%s",
+                message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId(), statusSegment);
+    }
+
+
     /**
      * Maps a checked API exception to a runtime exception.
      * <p>Wrapped in a plain {@link RuntimeException} so that transient/technical API failures
@@ -90,6 +104,8 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
 
         if (ex instanceof ApiErrorResponseException apiEx) {
             int status = apiEx.getStatusCode();
+            LOG.info("updateWithdrawalStatus failed: status=" + status
+                    + ", eventId=" + eventId);
             // 4xx (except 429) => permanent/client error => do not retry
             if (status >= 400 && status < 500 && status != 429) {
                 return new InvalidStrikeOffMessageException(

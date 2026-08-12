@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.OBJECTION;
 
 class AbstractStrikeOffPartnerEventsProcessorTest {
 
@@ -31,7 +32,7 @@ class AbstractStrikeOffPartnerEventsProcessorTest {
         processor = new AbstractStrikeOffPartnerEventsProcessor(Mockito.mock(InternalApiClient.class)) {
             @Override
             protected boolean supports(EventType eventType) {
-                return eventType == EventType.OBJECTION;
+                return eventType == OBJECTION;
             }
 
             @Override
@@ -140,6 +141,15 @@ class AbstractStrikeOffPartnerEventsProcessorTest {
                 processor.buildResourceUri(msg, "strike-off-partner-withdrawals"));
     }
 
+    @Test
+    void buildInternalStatusUriBuildsExpectedPath() {
+        StrikeOffPartnerObjections message = validMessage();
+
+        String uri = processor.buildInternalStatusUri(message, "strike-off-partner-objections", "status");
+
+        assertEquals("/internal/company/12345678/strike-off-partner-objections/strike-001/status", uri);
+    }
+
     // --- mapApiException: non-retryable cases ---
 
     @Test
@@ -220,7 +230,7 @@ class AbstractStrikeOffPartnerEventsProcessorTest {
                 .setEventTime("2026-07-06T00:00:00Z")
                 .setSource("test")
                 .setCompanyNumber("12345678")
-                .setEventType(EventType.OBJECTION)
+                .setEventType(OBJECTION)
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-001")
                 .build();

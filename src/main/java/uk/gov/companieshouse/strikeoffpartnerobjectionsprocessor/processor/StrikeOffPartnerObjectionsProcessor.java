@@ -5,13 +5,12 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
-import uk.gov.companieshouse.logging.Logger;
-import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTIONS;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.STATUS;
 
 /**
  * Processor for strike-off partner objection events.
@@ -23,8 +22,7 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
 @Component
 public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
 
-    private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
-    private static final String RESOURCE_SEGMENT = "strike-off-partner-objections";
+
 
     protected StrikeOffPartnerObjectionsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient);
@@ -56,7 +54,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
     }
 
     private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjections message) {
-        String uri = buildResourceUri(message, RESOURCE_SEGMENT);
+        String uri = buildResourceUri(message, OBJECTIONS);
         try {
             var response = internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
@@ -66,12 +64,13 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
                     + ", status=" + response.getStatusCode());
             return response.getData();
         } catch (Exception e) {
+            LOG.info("Failed to get objection - api url: " + uri);
             throw mapApiException(message.getEventId(), e);
         }
     }
 
     private void updateObjectionStatus(StrikeOffPartnerObjections message) {
-        String uri = buildResourceUri(message, RESOURCE_SEGMENT);
+        String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
         try {
             UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
             request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
@@ -84,6 +83,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
                     + ObjectionProcessingStatus.OBJECTION_PROCESSING
                     + " for eventId=" + message.getEventId());
         } catch (Exception e) {
+            LOG.info("Failed to update withdrawal status - api url: " + uri);
             throw mapApiException(message.getEventId(), e);
         }
     }

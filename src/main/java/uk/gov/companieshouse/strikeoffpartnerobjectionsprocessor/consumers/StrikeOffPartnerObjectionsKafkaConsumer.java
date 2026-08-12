@@ -20,7 +20,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.Proce
 
 import java.util.Map;
 
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
 
 
 /**
