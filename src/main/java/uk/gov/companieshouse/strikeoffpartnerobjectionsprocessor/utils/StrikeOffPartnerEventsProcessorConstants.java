@@ -1,6 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils;
 
-public class StrikeOffPartnerEventsProcessorConstants {
+public final class StrikeOffPartnerEventsProcessorConstants {
 
     private StrikeOffPartnerEventsProcessorConstants() {
         /* This utility class should not be instantiated */
