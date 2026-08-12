@@ -1,8 +1,8 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils;
 
-public class StrikeOffPartnerObjectionsProcessorConstants {
+public class StrikeOffPartnerEventsProcessorConstants {
 
-    private StrikeOffPartnerObjectionsProcessorConstants() {
+    private StrikeOffPartnerEventsProcessorConstants() {
         /* This utility class should not be instantiated */
     }
 
@@ -11,4 +11,5 @@ public class StrikeOffPartnerObjectionsProcessorConstants {
     public static final String WITHDRAWAL_STATUS = "withdrawal-status";
     public static final String STATUS = "status";
     public static final String OBJECTIONS = "strike-off-partner-objections";
+    public static final String INTERNAL_COMPANY_URI = "/internal/company/";
 }

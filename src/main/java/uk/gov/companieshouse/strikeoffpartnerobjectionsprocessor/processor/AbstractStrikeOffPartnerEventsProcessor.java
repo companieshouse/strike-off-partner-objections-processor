@@ -10,7 +10,8 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerObjectionsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.INTERNAL_COMPANY_URI;
 
 /**
  * Base processor for {@link StrikeOffPartnerObjections} events using the template method pattern.
@@ -82,7 +83,7 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
     }
 
     protected String buildInternalStatusUri(StrikeOffPartnerObjections message, String resourceSegment, String statusSegment) {
-        return String.format("/internal/company/%s/%s/%s/%s",
+        return String.format(INTERNAL_COMPANY_URI + "%s/%s/%s/%s",
                 message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId(), statusSegment);
     }
 
