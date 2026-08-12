@@ -169,6 +169,7 @@ variable "shutdown_eventbridge_scheduler_cron" {
 variable "kafka_error_consumer_version" {
   type        = string
   description = "The version of the kafka_error_consumer container to run."
+  default     = ""
 }
 
 variable "desired_task_count_kafka_error" {
