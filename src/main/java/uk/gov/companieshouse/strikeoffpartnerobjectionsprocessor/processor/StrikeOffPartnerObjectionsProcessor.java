@@ -83,7 +83,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
                     + ObjectionProcessingStatus.OBJECTION_PROCESSING
                     + " for eventId=" + message.getEventId());
         } catch (Exception e) {
-            LOG.info("Failed to update withdrawal status - api url: " + uri);
+            LOG.info("Failed to update Objection status using api url: " + uri);
             throw mapApiException(message.getEventId(), e);
         }
     }
