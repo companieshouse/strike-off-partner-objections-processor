@@ -74,7 +74,7 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
                     + ", status=" + response.getStatusCode());
             return response.getData();
         } catch (Exception e) {
-            LOG.info("Failed to update withdrawal status - api url: " + uri);
+            LOG.info("Failed to update withdrawal status using api url: " + uri);
             throw mapApiException(message.getEventId(), e);
         }
     }
