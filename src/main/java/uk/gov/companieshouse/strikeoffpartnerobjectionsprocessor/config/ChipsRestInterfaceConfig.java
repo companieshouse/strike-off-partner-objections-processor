@@ -21,8 +21,8 @@ public class ChipsRestInterfaceConfig {
 
     private ClientHttpRequestInterceptor apiKeyInterceptor() {
         return (request, body, execution) -> {
+            // The mentioned header name in TRACS-160
             request.getHeaders().set("chs-api-key", chipsRestApiKey);
-            request.getHeaders().set("Content-Type", "application/json");
             return execution.execute(request, body);
         };
     }
