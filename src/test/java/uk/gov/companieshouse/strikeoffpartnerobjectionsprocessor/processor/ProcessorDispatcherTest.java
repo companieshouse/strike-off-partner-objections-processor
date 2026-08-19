@@ -21,13 +21,16 @@ import static org.mockito.Mockito.verify;
 class ProcessorDispatcherTest {
 
     @Mock
-    private AbstractStrikeOffPartnerEventsProcessor processor;
+    private AbstractStrikeOffPartnerIncomingEventsProcessor processor;
+
+    @Mock
+    private AbstractStrikeOffPartnerProcessedEventsProcessor processedEventsProcessor;
 
     private ProcessorDispatcher dispatcher;
 
     @BeforeEach
     void setUp() {
-        dispatcher = new ProcessorDispatcher(List.of(processor));
+        dispatcher = new ProcessorDispatcher(List.of(processor), List.of(processedEventsProcessor));
     }
 
     @Test
@@ -50,13 +53,13 @@ class ProcessorDispatcherTest {
 
     @Test
     void dispatch_multipleProcessors_callsFirstMatch() {
-        AbstractStrikeOffPartnerEventsProcessor noMatch = mock(AbstractStrikeOffPartnerEventsProcessor.class);
-        AbstractStrikeOffPartnerEventsProcessor match   = mock(AbstractStrikeOffPartnerEventsProcessor.class);
+        AbstractStrikeOffPartnerIncomingEventsProcessor noMatch = mock(AbstractStrikeOffPartnerIncomingEventsProcessor.class);
+        AbstractStrikeOffPartnerIncomingEventsProcessor match   = mock(AbstractStrikeOffPartnerIncomingEventsProcessor.class);
 
         when(noMatch.supports(EventType.OBJECTION)).thenReturn(false);
         when(match.supports(EventType.OBJECTION)).thenReturn(true);
 
-        ProcessorDispatcher newDispatcher = new ProcessorDispatcher(List.of(noMatch, match));
+        ProcessorDispatcher newDispatcher = new ProcessorDispatcher(List.of(noMatch, match), List.of());
         StrikeOffPartnerObjections msg = message(EventType.OBJECTION);
 
         newDispatcher.dispatch(msg);

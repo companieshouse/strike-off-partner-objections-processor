@@ -17,14 +17,14 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  *
  * <p>This implementation handles only {@link EventType#OBJECTION} messages and
  * performs objection-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerEventsProcessor#process(StrikeOffPartnerObjections)}.
+ * {@link AbstractStrikeOffPartnerIncomingEventsProcessor#process(StrikeOffPartnerObjections)}.
  */
 @Component
-public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+public class StrikeOffPartnerIncomingObjectionsProcessor extends AbstractStrikeOffPartnerIncomingEventsProcessor {
 
 
 
-    protected StrikeOffPartnerObjectionsProcessor(InternalApiClient internalApiClient) {
+    protected StrikeOffPartnerIncomingObjectionsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient);
     }
 

@@ -18,10 +18,10 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  *
  * <p>This implementation handles only {@link EventType#WITHDRAWAL} messages and
  * performs withdrawal-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerEventsProcessor#process(StrikeOffPartnerObjections)}.
+ * {@link AbstractStrikeOffPartnerIncomingEventsProcessor#process(StrikeOffPartnerObjections)}.
  */
 @Component
-public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerIncomingEventsProcessor {
 
 
     protected StrikeOffPartnerWithdrawalsProcessor(InternalApiClient internalApiClient) {

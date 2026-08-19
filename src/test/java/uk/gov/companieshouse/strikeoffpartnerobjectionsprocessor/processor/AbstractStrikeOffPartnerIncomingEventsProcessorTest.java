@@ -22,14 +22,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.OBJECTION;
 
-class AbstractStrikeOffPartnerEventsProcessorTest {
+class AbstractStrikeOffPartnerIncomingEventsProcessorTest {
 
-    private AbstractStrikeOffPartnerEventsProcessor processor;
+    private AbstractStrikeOffPartnerIncomingEventsProcessor processor;
 
     @BeforeEach
     void setUp() {
         // Minimal concrete subclass that supports OBJECTION
-        processor = new AbstractStrikeOffPartnerEventsProcessor(Mockito.mock(InternalApiClient.class)) {
+        processor = new AbstractStrikeOffPartnerIncomingEventsProcessor(Mockito.mock(InternalApiClient.class)) {
             @Override
             protected boolean supports(EventType eventType) {
                 return eventType == OBJECTION;
