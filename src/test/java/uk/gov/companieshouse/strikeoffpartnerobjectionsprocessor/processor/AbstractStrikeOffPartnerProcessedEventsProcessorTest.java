@@ -97,7 +97,7 @@ class AbstractStrikeOffPartnerProcessedEventsProcessorTest {
                 .setStrikeOffEventId("evt-001")
                 .setEventType(OBJECTION)
                 .setInitialExpirationOn(LocalDate.parse("2024-12-31"))
-                // .setCompanyNumber("12345678")
+                .setCompanyNumber("12345678")
                 .setSuccessFailureIndicator(succeeded ? SUCCESS : FAILURE)
                 .setErrorMessage(succeeded ? null : "Some error message")
                 .setStrikeOffEventId("strike-001")

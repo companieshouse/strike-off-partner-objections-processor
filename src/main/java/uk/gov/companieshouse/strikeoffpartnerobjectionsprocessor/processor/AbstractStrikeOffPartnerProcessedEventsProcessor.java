@@ -47,12 +47,12 @@ public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends A
 
     @Override
     protected String buildResourceUri(StrikeOffPartnerObjectionsProcessed message, String resourceSegment) {
-        return String.format("/company/%s/%s/%s", "COMPANY_NUMBER", resourceSegment, message.getStrikeOffEventId());
+        return String.format("/company/%s/%s/%s", message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId());
     }
 
     @Override
     protected String buildInternalStatusUri(StrikeOffPartnerObjectionsProcessed message, String resourceSegment, String statusSegment) {
         return String.format(INTERNAL_COMPANY_URI + "%s/%s/%s/%s",
-                "COMPANY_NUMBER", resourceSegment, message.getStrikeOffEventId(), statusSegment);
+                message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId(), statusSegment);
     }
 }
