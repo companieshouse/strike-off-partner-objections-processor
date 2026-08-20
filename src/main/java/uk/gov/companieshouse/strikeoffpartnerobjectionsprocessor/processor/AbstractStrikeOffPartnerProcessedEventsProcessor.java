@@ -7,6 +7,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
+import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.INTERNAL_COMPANY_URI;
 
 public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends AbstractStrikeOffPartnerEventsProcessor<StrikeOffPartnerObjectionsProcessed> {
@@ -36,7 +37,9 @@ public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends A
         if (message.getSuccessFailureIndicator() == FAILURE) {
             validateNotBlank(message.getErrorMessage(), "ErrorMessage");
         }
-        validateNotBlank(String.valueOf(message.getInitialExpirationOn()), "InitialExpirationOn");
+        if (message.getSuccessFailureIndicator() == SUCCESS) {
+            validateNotBlank(String.valueOf(message.getInitialExpirationOn()), "InitialExpirationOn");
+        }
     }
 
     @Override
