@@ -18,11 +18,11 @@ public final class StrikeOffPartnerEventsProcessorConstants {
     public static final String OBJECTIONS = "strike-off-partner-objections";
     public static final String INTERNAL_COMPANY_URI = "/internal/company/";
 
-    public static Map<String, Object> buildBaseKafkaLogMap(ConsumerRecord<String, ?> record) {
+    public static Map<String, Object> buildBaseKafkaLogMap(ConsumerRecord<String, ?> baseRecord) {
         return new DataMap.Builder()
-                .topic(record.topic())
-                .partition(record.partition())
-                .offset(record.offset())
+                .topic(baseRecord.topic())
+                .partition(baseRecord.partition())
+                .offset(baseRecord.offset())
                 .build()
                 .getLogMap();
     }
