@@ -5,8 +5,9 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
-import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
-import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
+import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTIONS;
@@ -15,43 +16,42 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
 /**
  * Processor for incoming strike-off partner objection events.
  *
- * <p>This implementation handles only {@link EventType#OBJECTION} messages and
+ * <p>This implementation handles only {@link ProcessedEventType#OBJECTION} messages and
  * performs objection-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerIncomingEventsProcessor#process(StrikeOffPartnerObjections)}.
+ * {@link AbstractStrikeOffPartnerProcessedEventsProcessor#process(StrikeOffPartnerObjectionsProcessed)}.
  */
 @Component
-public class StrikeOffPartnerIncomingObjectionsProcessor extends AbstractStrikeOffPartnerIncomingEventsProcessor {
+public class StrikeOffPartnerProcessedObjectionsProcessor extends AbstractStrikeOffPartnerProcessedEventsProcessor {
 
-    protected StrikeOffPartnerIncomingObjectionsProcessor(InternalApiClient internalApiClient) {
+    protected StrikeOffPartnerProcessedObjectionsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient);
     }
 
     @Override
-    protected boolean supports(EventType eventType) {
-        return eventType == EventType.OBJECTION;
+    protected boolean supports(ProcessedEventType eventType) {
+        return eventType == ProcessedEventType.OBJECTION;
     }
 
     @Override
-    protected void doProcess(StrikeOffPartnerObjections message) {
-        LOG.info("Processing objection event with ID: " + message.getEventId());
+    protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
+        LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId());
         var objection = getObjectionDetails(message);
 
-        // Idempotent check: if already processing, skip
-        if (isDuplicateRecord(
-                objection.getProcessingStatus().getValue(),
-                ObjectionProcessingStatus.OBJECTION_PROCESSING.getValue())) {
+        // Idempotent check: if this has already been accepted or rejected, skip
+        if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())
+                || isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_REJECTED.getValue())) {
             throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + objection.getObjectionId()
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
         LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
 
-        // Update status to objection-processing
+        // Update status to accepted or rejected
         updateObjectionStatus(message);
-        LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
+        LOG.info("Updated objection status to OBJECTION_ACCEPTED or OBJECTION_REJECTED for objectionId=" + objection.getObjectionId());
     }
 
-    private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjections message) {
+    private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjectionsProcessed message) {
         String uri = buildResourceUri(message, OBJECTIONS);
         try {
             var response = internalApiClient
@@ -63,26 +63,30 @@ public class StrikeOffPartnerIncomingObjectionsProcessor extends AbstractStrikeO
             return response.getData();
         } catch (Exception e) {
             LOG.info("Failed to get objection - api url: " + uri);
-            throw mapApiException(message.getEventId(), e);
+            throw mapApiException(message.getStrikeOffEventId(), e);
         }
     }
 
-    private void updateObjectionStatus(StrikeOffPartnerObjections message) {
+    private void updateObjectionStatus(StrikeOffPartnerObjectionsProcessed message) {
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
         try {
             UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
-            request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
+            SuccessFailureIndicator successFailureIndicator = message.getSuccessFailureIndicator();
+            request.setProcessingStatus(
+                    successFailureIndicator == SuccessFailureIndicator.SUCCESS ?
+                            ObjectionProcessingStatus.OBJECTION_ACCEPTED :
+                            ObjectionProcessingStatus.OBJECTION_REJECTED);
 
             internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .updateObjectionStatus(uri, request)
                     .execute();
             LOG.info("Successfully updated objection status to "
-                    + ObjectionProcessingStatus.OBJECTION_PROCESSING
-                    + " for eventId=" + message.getEventId());
+                    + request.getProcessingStatus()
+                    + " for eventId=" + message.getStrikeOffEventId());
         } catch (Exception e) {
             LOG.info("Failed to update Objection status using api url: " + uri);
-            throw mapApiException(message.getEventId(), e);
+            throw mapApiException(message.getStrikeOffEventId(), e);
         }
     }
 }
