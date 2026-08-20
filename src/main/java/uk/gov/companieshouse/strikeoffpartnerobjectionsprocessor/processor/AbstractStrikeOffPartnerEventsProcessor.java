@@ -7,11 +7,34 @@ import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
+import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
+import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
 
+/**
+ * Base processor for {@link StrikeOffPartnerObjections} and {@link StrikeOffPartnerObjectionsProcessed} events using the template method pattern.
+ *
+ * <p>The {@link #process(SpecificRecordBase)} method defines a fixed flow:
+ * <ol>
+ *   <li>Validate mandatory fields on the incoming message.</li>
+ *   <li>Check whether this processor supports the message {@link EventType} or {@link ProcessedEventType}.</li>
+ *   <li>Delegate business handling to {@link #doProcess(SpecificRecordBase)}.</li>
+ * </ol>
+ *
+ * <p>Subclasses must implement:
+ * <ul>
+ *   <li>{@link #supports(EventType)} or {@link #supports(ProcessedEventType)} to declare which event type(s) they handle.</li>
+ *   <li>{@link #doProcess(SpecificRecordBase)} to execute event-specific processing.</li>
+ * </ul>
+ *
+ * <p>If validation fails or the event type is unsupported, an
+ * {@link InvalidStrikeOffMessageException}
+ * is thrown.
+ */
 public abstract class AbstractStrikeOffPartnerEventsProcessor {
 
     protected final InternalApiClient internalApiClient;
@@ -30,6 +53,10 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
     }
 
     protected boolean supports(EventType eventType) {
+        throw new UnsupportedOperationException("Subclasses must implement supports");
+    }
+
+    protected boolean supports(ProcessedEventType eventType) {
         throw new UnsupportedOperationException("Subclasses must implement supports");
     }
 
