@@ -7,12 +7,11 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.INTERNAL_COMPANY_URI;
 
-public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends AbstractStrikeOffPartnerEventsProcessor<StrikeOffPartnerObjectionsProcessed> {
 
     protected AbstractStrikeOffPartnerProcessedEventsProcessor(InternalApiClient internalApiClient) {
-        super(internalApiClient);
+        super(internalApiClient, StrikeOffPartnerObjectionsProcessed::getStrikeOffEventId);
     }
 
     public final void process(StrikeOffPartnerObjectionsProcessed message) {
@@ -40,13 +39,4 @@ public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends A
     protected abstract boolean supports(ProcessedEventType eventType);
 
     protected abstract void doProcess(StrikeOffPartnerObjectionsProcessed message) throws DuplicateRecordException;
-
-    protected String buildResourceUri(StrikeOffPartnerObjectionsProcessed message, String resourceSegment) {
-        return String.format("/company/%s/%s/%s", message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId());
-    }
-
-    protected String buildInternalStatusUri(StrikeOffPartnerObjectionsProcessed message, String resourceSegment, String statusSegment) {
-        return String.format(INTERNAL_COMPANY_URI + "%s/%s/%s/%s",
-                message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId(), statusSegment);
-    }
 }

@@ -4,6 +4,9 @@ import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
+import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
+import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
+import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
@@ -13,7 +16,11 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
+import java.util.function.Function;
+
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTIONS;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.STATUS;
 
 /**
  * Base processor for {@link StrikeOffPartnerObjections} and {@link StrikeOffPartnerObjectionsProcessed} events using the template method pattern.
@@ -35,20 +42,23 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  * {@link InvalidStrikeOffMessageException}
  * is thrown.
  */
-public abstract class AbstractStrikeOffPartnerEventsProcessor {
+public abstract class AbstractStrikeOffPartnerEventsProcessor<T extends SpecificRecordBase> {
 
     protected final InternalApiClient internalApiClient;
+    protected final Function<T, String> eventIdGetter;
     protected static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
 
-    protected AbstractStrikeOffPartnerEventsProcessor(InternalApiClient internalApiClient) {
+    protected AbstractStrikeOffPartnerEventsProcessor(InternalApiClient internalApiClient, 
+                                                      Function<T, String> eventIdGetter) {
         this.internalApiClient = internalApiClient;
+        this.eventIdGetter = eventIdGetter;
     }
 
-    protected void process(SpecificRecordBase message) {
+    protected void process(T message) {
         throw new UnsupportedOperationException("Subclasses must implement process");
     }
 
-    protected void validate(SpecificRecordBase message) {
+    protected void validate(T message) {
         throw new UnsupportedOperationException("Subclasses must implement validate");
     }
 
@@ -60,7 +70,7 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
         throw new UnsupportedOperationException("Subclasses must implement supports");
     }
 
-    protected void doProcess(SpecificRecordBase message) throws DuplicateRecordException {
+    protected void doProcess(T message) throws DuplicateRecordException {
         throw new UnsupportedOperationException("Subclasses must implement doProcess");
     }
 
@@ -70,11 +80,11 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
      * @param resourceSegment the resource path segment (e.g. {@code "strike-off-partner-objections"})
      * @return the constructed resource URI
      * */
-    protected String buildResourceUri(SpecificRecordBase message, String resourceSegment) {
+    protected String buildResourceUri(T message, String resourceSegment) {
         throw new UnsupportedOperationException("Subclasses must implement buildResourceUri");
     }
 
-    protected String buildInternalStatusUri(SpecificRecordBase message, String resourceSegment, String statusSegment) {
+    protected String buildInternalStatusUri(T message, String resourceSegment, String statusSegment) {
         throw new UnsupportedOperationException("Subclasses must implement buildInternalStatusUri");
     }
 
@@ -117,8 +127,42 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
                 "Retryable error for eventId=" + eventId, ex);
     }
 
-    protected boolean isDuplicateRecord(String status,
-                                        String processedStatus) {
+    protected boolean isDuplicateRecord(String status, String processedStatus) {
         return processedStatus != null && processedStatus.equalsIgnoreCase(status);
+    }
+
+    protected final BaseObjectionResponse getObjectionDetails(T message) {
+        String uri = buildResourceUri(message, OBJECTIONS);
+        try {
+            var response = internalApiClient
+                    .privateStrikeOffPartnerObjectionsResourceHandler()
+                    .getObjection(uri)
+                    .execute();
+            LOG.info("Fetched objection for objectionId=" + response.getData().getObjectionId()
+                    + ", status=" + response.getStatusCode());
+            return response.getData();
+        } catch (Exception e) {
+            LOG.info("Failed to get objection - api url: " + uri);
+            throw mapApiException(eventIdGetter.apply(message), e);
+        }
+    }
+
+    protected final void updateObjectionStatus(T message, ObjectionProcessingStatus status) {
+        String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
+        try {
+            UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
+            request.setProcessingStatus(status);
+
+            internalApiClient
+                    .privateStrikeOffPartnerObjectionsResourceHandler()
+                    .updateObjectionStatus(uri, request)
+                    .execute();
+            LOG.info("Successfully updated objection status to "
+                    + status
+                    + " for eventId=" + eventIdGetter.apply(message));
+        } catch (Exception e) {
+            LOG.info("Failed to update Objection status using api url: " + uri);
+            throw mapApiException(eventIdGetter.apply(message), e);
+        }
     }
 }

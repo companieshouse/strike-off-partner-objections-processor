@@ -8,10 +8,10 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.INTERNAL_COMPANY_URI;
 
-public abstract class AbstractStrikeOffPartnerIncomingEventsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+public abstract class AbstractStrikeOffPartnerIncomingEventsProcessor extends AbstractStrikeOffPartnerEventsProcessor<StrikeOffPartnerObjections> {
 
     protected AbstractStrikeOffPartnerIncomingEventsProcessor(InternalApiClient internalApiClient) {
-        super(internalApiClient);
+        super(internalApiClient, StrikeOffPartnerObjections::getEventId);
     }
 
     public final void process(StrikeOffPartnerObjections message) {
