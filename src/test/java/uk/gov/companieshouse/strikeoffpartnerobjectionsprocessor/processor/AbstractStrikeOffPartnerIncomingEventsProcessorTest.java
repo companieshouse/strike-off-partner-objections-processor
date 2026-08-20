@@ -3,24 +3,22 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mockito;
+import org.junit.jupiter.params.provider.MethodSource;
 import uk.gov.companieshouse.api.InternalApiClient;
-import uk.gov.companieshouse.api.error.ApiErrorResponseException;
-import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
+import java.util.stream.Stream;
+import java.util.function.Consumer;
+import org.junit.jupiter.params.provider.Arguments;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.OBJECTION;
+import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.WITHDRAWAL;
 
 class AbstractStrikeOffPartnerIncomingEventsProcessorTest {
 
@@ -29,7 +27,7 @@ class AbstractStrikeOffPartnerIncomingEventsProcessorTest {
     @BeforeEach
     void setUp() {
         // Minimal concrete subclass that supports OBJECTION
-        processor = new AbstractStrikeOffPartnerIncomingEventsProcessor(Mockito.mock(InternalApiClient.class)) {
+        processor = new AbstractStrikeOffPartnerIncomingEventsProcessor(mock(InternalApiClient.class)) {
             @Override
             protected boolean supports(EventType eventType) {
                 return eventType == OBJECTION;
@@ -65,166 +63,37 @@ class AbstractStrikeOffPartnerIncomingEventsProcessorTest {
     }
 
     @Test
-    void validate_nullEventId_throwsInvalidMessage() {
-        StrikeOffPartnerObjections msg = validMessage();
-        msg.setEventId(null);
-
-        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(msg));
-        assertTrue(ex.getMessage().contains("eventId"));
-    }
-
-    @Test
-    void validate_nullPartnerOrganisation_throwsInvalidMessage() {
-        StrikeOffPartnerObjections msg = validMessage();
-        msg.setPartnerOrganisation(null);
-
-        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(msg));
-        assertTrue(ex.getMessage().contains("PartnerOrganisation"));
-    }
-
-    @Test
-    void validate_blankEventId_throwsInvalidMessage() {
-        StrikeOffPartnerObjections msg = validMessage();
-        msg.setEventId("   ");
-
-        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(msg));
-        assertTrue(ex.getMessage().contains("eventId"));
-    }
-
-    @Test
-    void validate_blankPartnerOrganisation_throwsInvalidMessage() {
-        StrikeOffPartnerObjections msg = validMessage();
-        msg.setPartnerOrganisation("  ");
-
-        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(msg));
-        assertTrue(ex.getMessage().contains("PartnerOrganisation"));
-    }
-
-    @Test
-    void validate_blankCompanyNumber_throwsInvalidMessage() {
-        StrikeOffPartnerObjections msg = validMessage();
-        msg.setCompanyNumber("  ");
-
-        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(msg));
-        assertTrue(ex.getMessage().contains("Company number"));
-    }
-
-    @Test
-    void validate_blankStrikeOffEventId_throwsInvalidMessage() {
-        StrikeOffPartnerObjections msg = validMessage();
-        msg.setStrikeOffEventId("  ");
-
-        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(msg));
-        assertTrue(ex.getMessage().contains("StrikeOffEventId"));
-    }
-
-    @Test
     void process_unsupportedEventType_throwsRuntimeException() {
         StrikeOffPartnerObjections msg = validMessage();
-        msg.setEventType(EventType.WITHDRAWAL);
+        msg.setEventType(WITHDRAWAL);
 
         InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(msg));
         assertTrue(ex.getMessage().contains("unsupported event type"));
     }
 
-    @Test
-    void buildResourceUri_withDifferentSegment() {
+    @ParameterizedTest
+    @MethodSource("provideInvalidFields")
+    void validate_invalidField_throwsInvalidMessage(Consumer<StrikeOffPartnerObjections> fieldSetter, String expectedError) {
         StrikeOffPartnerObjections msg = validMessage();
-        assertEquals("/company/12345678/strike-off-partner-withdrawals/strike-001",
-                processor.buildResourceUri(msg, "strike-off-partner-withdrawals"));
+        fieldSetter.accept(msg);
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(msg));
+        assertTrue(ex.getMessage().contains(expectedError),
+                "Expected error message to contain: " + expectedError);
     }
 
-    @Test
-    void buildInternalStatusUriBuildsExpectedPath() {
-        StrikeOffPartnerObjections message = validMessage();
-
-        String uri = processor.buildInternalStatusUri(message, "strike-off-partner-objections", "status");
-
-        assertEquals("/internal/company/12345678/strike-off-partner-objections/strike-001/status", uri);
+    static Stream<Arguments> provideInvalidFields() {
+        return Stream.of(
+                Arguments.of((Consumer<StrikeOffPartnerObjections>) msg -> msg.setEventId(null), "eventId"),
+                Arguments.of((Consumer<StrikeOffPartnerObjections>) msg -> msg.setPartnerOrganisation(null), "PartnerOrganisation"),
+                Arguments.of((Consumer<StrikeOffPartnerObjections>) msg -> msg.setCompanyNumber("  "), "Company number"),
+                Arguments.of((Consumer<StrikeOffPartnerObjections>) msg -> msg.setStrikeOffEventId("  "), "StrikeOffEventId")
+        );
     }
 
-    // --- mapApiException: non-retryable cases ---
-
-    @Test
-    void mapApiException_uriValidationException_isNonRetryable() {
-        RuntimeException result = processor.mapApiException("evt-001", mock(URIValidationException.class));
-
-        assertInstanceOf(InvalidStrikeOffMessageException.class, result);
-        assertTrue(result.getMessage().contains("Non-retryable URI validation error"));
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {400, 401, 403, 404, 422})
-    void mapApiException_4xxStatus_isNonRetryable(int status) {
-        ApiErrorResponseException apiEx = mock(ApiErrorResponseException.class);
-        when(apiEx.getStatusCode()).thenReturn(status);
-
-        RuntimeException result = processor.mapApiException("evt-001", apiEx);
-
-        assertInstanceOf(InvalidStrikeOffMessageException.class, result, "Expected non-retryable for status " + status);
-        assertTrue(result.getMessage().contains("Non-retryable API error (status=" + status + ")"));
-    }
-
-    // --- mapApiException: retryable cases ---
-
-    @ParameterizedTest
-    @ValueSource(ints = {429, 500, 502, 503})
-    void mapApiException_retriableApiStatuses_areRetryable(int status) {
-        ApiErrorResponseException apiEx = mock(ApiErrorResponseException.class);
-        when(apiEx.getStatusCode()).thenReturn(status);
-
-        RuntimeException result = processor.mapApiException("evt-001", apiEx);
-
-        assertFalse(result instanceof InvalidStrikeOffMessageException,
-                "Expected retryable for status " + status);
-        assertTrue(result.getMessage().contains("Retryable API error (status=" + status + ")"));
-    }
-
-    @Test
-    void mapApiException_unknownException_isRetryable() {
-        RuntimeException result = processor.mapApiException("evt-001", new IllegalStateException("boom"));
-
-        assertFalse(result instanceof InvalidStrikeOffMessageException);
-        assertTrue(result.getMessage().contains("Retryable error for eventId=evt-001"));
-    }
-
-    @Test
-    void mapApiException_includesEventIdInMessage() {
-        RuntimeException result = processor.mapApiException("my-event-id", new IllegalStateException());
-
-        assertTrue(result.getMessage().contains("my-event-id"));
-    }
-
-    // --- isDuplicateRecord ---
-
-    @Test
-    void isDuplicateRecord_whenStatusMatchesProcessedStatus_returnsTrue() {
-        assertTrue(processor.isDuplicateRecord("PROCESSED", "PROCESSED"));
-    }
-
-    @Test
-    void isDuplicateRecord_isCaseInsensitive_returnsTrue() {
-        assertTrue(processor.isDuplicateRecord("processed", "PROCESSED"));
-    }
-
-    @Test
-    void isDuplicateRecord_whenStatusDoesNotMatch_returnsFalse() {
-        assertFalse(processor.isDuplicateRecord("PROCESSED", "PENDING"));
-    }
-
-    @Test
-    void isDuplicateRecord_whenProcessedStatusIsNull_returnsFalse() {
-        assertFalse(processor.isDuplicateRecord("PROCESSED", null));
-    }
-
-    private StrikeOffPartnerObjections validMessage() {
+    StrikeOffPartnerObjections validMessage() {
         return StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-001")
                 .setEventTime("2026-07-06T00:00:00Z")

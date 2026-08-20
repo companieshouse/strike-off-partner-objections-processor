@@ -14,6 +14,7 @@ public abstract class AbstractStrikeOffPartnerIncomingEventsProcessor extends Ab
         super(internalApiClient, StrikeOffPartnerObjections::getEventId);
     }
 
+    @Override
     public final void process(StrikeOffPartnerObjections message) {
         validate(message);
 
@@ -23,6 +24,7 @@ public abstract class AbstractStrikeOffPartnerIncomingEventsProcessor extends Ab
         doProcess(message);
     }
 
+    @Override
     protected void validate(StrikeOffPartnerObjections message) {
         if (message == null || message.getEventType() == null) {
             throw new InvalidStrikeOffMessageException("Missing eventType");
@@ -36,12 +38,15 @@ public abstract class AbstractStrikeOffPartnerIncomingEventsProcessor extends Ab
     @Override
     protected abstract boolean supports(EventType eventType);
 
+    @Override
     protected abstract void doProcess(StrikeOffPartnerObjections message) throws DuplicateRecordException;
 
+    @Override
     protected String buildResourceUri(StrikeOffPartnerObjections message, String resourceSegment) {
         return String.format("/company/%s/%s/%s", message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId());
     }
 
+    @Override
     protected String buildInternalStatusUri(StrikeOffPartnerObjections message, String resourceSegment, String statusSegment) {
         return String.format(INTERNAL_COMPANY_URI + "%s/%s/%s/%s",
                 message.getCompanyNumber(), resourceSegment, message.getStrikeOffEventId(), statusSegment);

@@ -89,7 +89,7 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor<T extends Specific
     }
 
     void validateNotBlank(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.equals("null") || value.isBlank()) {
             throw new InvalidStrikeOffMessageException("Missing " + fieldName);
         }
     }
