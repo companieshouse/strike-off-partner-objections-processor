@@ -21,6 +21,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.Proce
 import java.util.Map;
 
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
+import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.buildBaseKafkaLogMap;
 
@@ -137,7 +138,9 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         if (msg != null && msg.getSuccessFailureIndicator() == FAILURE) {
             logMap.put("error_message", msg.getErrorMessage());
         }
-        logMap.put("initial_expiration_on", msg != null ? msg.getInitialExpirationOn() : null);
+        if (msg != null && msg.getSuccessFailureIndicator() == SUCCESS) {
+            logMap.put("initial_expiration_on", msg.getInitialExpirationOn());
+        }
         return logMap;
     }
 }
