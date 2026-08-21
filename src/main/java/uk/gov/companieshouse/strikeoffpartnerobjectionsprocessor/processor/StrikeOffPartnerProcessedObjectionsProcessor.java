@@ -35,7 +35,8 @@ public class StrikeOffPartnerProcessedObjectionsProcessor extends AbstractStrike
         // Idempotent check: if this has already been accepted or rejected, skip
         if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())
                 || isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_REJECTED.getValue())) {
-            throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + objection.getObjectionId()
+            throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + message.getStrikeOffEventId()
+                    + ", objectionId=" + objection.getObjectionId()
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
