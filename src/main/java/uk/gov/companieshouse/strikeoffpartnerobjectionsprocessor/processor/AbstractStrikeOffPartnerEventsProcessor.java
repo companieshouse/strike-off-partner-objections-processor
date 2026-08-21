@@ -54,13 +54,9 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor<T extends Specific
         this.eventIdGetter = eventIdGetter;
     }
 
-    protected void process(T message) {
-        throw new UnsupportedOperationException("Subclasses must implement process");
-    }
+    protected abstract void process(T message);
 
-    protected void validate(T message) {
-        throw new UnsupportedOperationException("Subclasses must implement validate");
-    }
+    protected abstract void validate(T message);
 
     protected boolean supports(EventType eventType) {
         throw new UnsupportedOperationException("Subclasses must implement supports");
@@ -70,9 +66,7 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor<T extends Specific
         throw new UnsupportedOperationException("Subclasses must implement supports");
     }
 
-    protected void doProcess(T message) throws DuplicateRecordException {
-        throw new UnsupportedOperationException("Subclasses must implement doProcess");
-    }
+    protected abstract void doProcess(T message) throws DuplicateRecordException;
 
     /**
      * Builds a resource URI shared by concrete processors.

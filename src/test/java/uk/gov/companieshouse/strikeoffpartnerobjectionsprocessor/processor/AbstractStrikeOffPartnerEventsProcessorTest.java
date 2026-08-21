@@ -23,6 +23,21 @@ class AbstractStrikeOffPartnerEventsProcessorTest {
     void setUp() {
         processor = new AbstractStrikeOffPartnerEventsProcessor<>(mock(InternalApiClient.class), msg -> "test-event-id") {
             @Override
+            protected void process(SpecificRecordBase message) {
+                // No-op: this test class validates shared helper behavior on the abstract base type.
+            }
+
+            @Override
+            protected void validate(SpecificRecordBase message) {
+                // No-op: this test class validates shared helper behavior on the abstract base type.
+            }
+
+            @Override
+            protected void doProcess(SpecificRecordBase message) {
+                // No-op: this test class validates shared helper behavior on the abstract base type.
+            }
+
+            @Override
             protected String buildResourceUri(SpecificRecordBase message, String resourceSegment) {
                 return "/company/12345678/" + resourceSegment + "/strike-001";
             }
@@ -102,4 +117,3 @@ class AbstractStrikeOffPartnerEventsProcessorTest {
         assertFalse(processor.isDuplicateRecord("PROCESSED", null));
     }
 }
-

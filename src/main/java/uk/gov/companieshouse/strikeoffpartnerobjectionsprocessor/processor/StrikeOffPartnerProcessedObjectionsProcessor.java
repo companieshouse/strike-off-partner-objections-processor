@@ -9,7 +9,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicato
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 /**
- * Processor for incoming strike-off partner objection events.
+ * Processor for processed strike-off partner objection events.
  *
  * <p>This implementation handles only {@link ProcessedEventType#OBJECTION} messages and
  * performs objection-specific processing after base validation is completed in
