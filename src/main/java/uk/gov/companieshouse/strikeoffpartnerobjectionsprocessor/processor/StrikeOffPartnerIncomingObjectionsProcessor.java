@@ -35,7 +35,8 @@ public class StrikeOffPartnerIncomingObjectionsProcessor extends AbstractStrikeO
         if (isDuplicateRecord(
                 objection.getProcessingStatus().getValue(),
                 ObjectionProcessingStatus.OBJECTION_PROCESSING.getValue())) {
-            throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + objection.getObjectionId()
+            throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + message.getStrikeOffEventId()
+                    + ", objectionId=" + objection.getObjectionId()
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
