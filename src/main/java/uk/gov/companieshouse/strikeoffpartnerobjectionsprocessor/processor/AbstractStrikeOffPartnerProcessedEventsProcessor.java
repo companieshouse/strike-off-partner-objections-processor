@@ -34,6 +34,7 @@ public abstract class AbstractStrikeOffPartnerProcessedEventsProcessor extends A
         validateNotBlank(message.getStrikeOffEventId(), "StrikeOffEventId");
         validateNotBlank(String.valueOf(message.getEventType()), "processedEventType");
         validateNotBlank(String.valueOf(message.getSuccessFailureIndicator()), "SuccessFailureIndicator");
+        validateNotBlank(message.getCompanyNumber(), "Company number");
         if (message.getSuccessFailureIndicator() == FAILURE) {
             validateNotBlank(message.getErrorMessage(), "ErrorMessage");
         }

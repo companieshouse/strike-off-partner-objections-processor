@@ -61,6 +61,16 @@ class AbstractStrikeOffPartnerProcessedEventsProcessorTest {
     }
 
     @Test
+    void validate_nullCompanyNumber_throwsInvalidMessage() {
+        StrikeOffPartnerObjectionsProcessed msg = validMessage(true);
+        msg.setCompanyNumber(null);
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(msg));
+        assertTrue(ex.getMessage().contains("Company number"));
+    }
+
+    @Test
     void process_unsupportedEventType_throwsRuntimeException() {
         StrikeOffPartnerObjectionsProcessed msg = validMessage(true);
         msg.setEventType(WITHDRAWAL);
