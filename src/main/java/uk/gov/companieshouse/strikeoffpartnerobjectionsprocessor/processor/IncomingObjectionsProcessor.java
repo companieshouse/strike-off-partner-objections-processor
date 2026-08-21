@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
+import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
@@ -12,24 +13,30 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
  *
  * <p>This implementation handles only {@link EventType#OBJECTION} messages and
  * performs objection-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerIncomingEventsProcessor#process(StrikeOffPartnerObjections)}.
+ * {@link AbstractEventsProcessor#process(SpecificRecordBase)}.
  */
 @Component
-public class StrikeOffPartnerIncomingObjectionsProcessor extends AbstractStrikeOffPartnerIncomingEventsProcessor {
+public class IncomingObjectionsProcessor
+        extends AbstractObjectionsEventsProcessor<StrikeOffPartnerObjections> {
 
-    protected StrikeOffPartnerIncomingObjectionsProcessor(InternalApiClient internalApiClient) {
-        super(internalApiClient);
+    protected IncomingObjectionsProcessor(InternalApiClient internalApiClient) {
+        super(internalApiClient,
+                StrikeOffPartnerObjections::getEventId,
+                StrikeOffPartnerObjections::getCompanyNumber,
+                StrikeOffPartnerObjections::getStrikeOffEventId);
     }
 
     @Override
-    protected boolean supports(EventType eventType) {
-        return eventType == EventType.OBJECTION;
+    protected boolean eventTypeSupported(StrikeOffPartnerObjections message) {
+        return message.getEventType() == EventType.OBJECTION;
     }
 
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
         LOG.info("Processing objection event with ID: " + message.getEventId());
         var objection = getObjectionDetails(message);
+
+        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
 
         // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
@@ -45,5 +52,10 @@ public class StrikeOffPartnerIncomingObjectionsProcessor extends AbstractStrikeO
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
+    }
+
+    @Override
+    protected void validate(StrikeOffPartnerObjections message) {
+        validateIncomingEvent(message);
     }
 }

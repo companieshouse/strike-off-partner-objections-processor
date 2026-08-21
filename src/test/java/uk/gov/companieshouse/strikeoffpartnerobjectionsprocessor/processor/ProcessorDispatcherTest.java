@@ -17,10 +17,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 
@@ -28,10 +27,10 @@ import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureI
 class ProcessorDispatcherTest {
 
     @Mock
-    private AbstractStrikeOffPartnerIncomingEventsProcessor processor;
+    private IncomingObjectionsProcessor processor;
 
     @Mock
-    private AbstractStrikeOffPartnerProcessedEventsProcessor processedEventsProcessor;
+    private ProcessedObjectionsProcessor processedEventsProcessor;
 
     private ProcessorDispatcher dispatcher;
 
@@ -43,28 +42,28 @@ class ProcessorDispatcherTest {
     @Test
     void dispatchIncomingObjections_delegatesToMatchingProcessor() {
         StrikeOffPartnerObjections msg = message(EventType.OBJECTION);
-        when(processor.supports(EventType.OBJECTION)).thenReturn(true);
+        when(processor.eventTypeSupported(msg)).thenReturn(true);
 
         dispatcher.dispatch(msg);
 
-        verify(processor, times(1)).process(msg);
+        verify(processor).process(msg);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void dispatchProcessedObjections_delegatesToMatchingProcessor(boolean wasSuccessful) {
         StrikeOffPartnerObjectionsProcessed msg = message(ProcessedEventType.OBJECTION, wasSuccessful);
-        when(processedEventsProcessor.supports(ProcessedEventType.OBJECTION)).thenReturn(true);
+        when(processedEventsProcessor.eventTypeSupported(msg)).thenReturn(true);
 
         dispatcher.dispatch(msg);
 
-        verify(processedEventsProcessor, times(1)).process(msg);
+        verify(processedEventsProcessor).process(msg);
     }
 
     @Test
     void dispatchIncomingObjections_noMatchingProcessor_throwsIllegalArgument() {
         StrikeOffPartnerObjections msg = message(EventType.WITHDRAWAL);
-        when(processor.supports(EventType.WITHDRAWAL)).thenReturn(false);
+        when(processor.eventTypeSupported(msg)).thenReturn(false);
 
         assertThrows(InvalidStrikeOffMessageException.class, () -> dispatcher.dispatch(msg));
     }
@@ -73,21 +72,21 @@ class ProcessorDispatcherTest {
     @ValueSource(booleans = {true, false})
     void dispatchProcessedObjections_noMatchingProcessor_throwsIllegalArgument(boolean wasSuccessful) {
         StrikeOffPartnerObjectionsProcessed msg = message(ProcessedEventType.WITHDRAWAL, wasSuccessful);
-        when(processedEventsProcessor.supports(ProcessedEventType.WITHDRAWAL)).thenReturn(false);
+        when(processedEventsProcessor.eventTypeSupported(msg)).thenReturn(false);
 
         assertThrows(InvalidStrikeOffMessageException.class, () -> dispatcher.dispatch(msg));
     }
 
     @Test
     void dispatchIncomingObjections_multipleProcessors_callsFirstMatch() {
-        AbstractStrikeOffPartnerIncomingEventsProcessor noMatch = mock(AbstractStrikeOffPartnerIncomingEventsProcessor.class);
-        AbstractStrikeOffPartnerIncomingEventsProcessor match   = mock(AbstractStrikeOffPartnerIncomingEventsProcessor.class);
-
-        when(noMatch.supports(EventType.OBJECTION)).thenReturn(false);
-        when(match.supports(EventType.OBJECTION)).thenReturn(true);
+        IncomingWithdrawalsProcessor noMatch = mock(IncomingWithdrawalsProcessor.class);
+        IncomingObjectionsProcessor match = mock(IncomingObjectionsProcessor.class);
 
         ProcessorDispatcher newDispatcher = new ProcessorDispatcher(List.of(noMatch, match), List.of());
         StrikeOffPartnerObjections msg = message(EventType.OBJECTION);
+
+        when(noMatch.eventTypeSupported(msg)).thenReturn(false);
+        when(match.eventTypeSupported(msg)).thenReturn(true);
 
         newDispatcher.dispatch(msg);
 
@@ -97,14 +96,14 @@ class ProcessorDispatcherTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void dispatchProcessedObjections_multipleProcessors_callsFirstMatch(boolean wasSuccessful) {
-        AbstractStrikeOffPartnerProcessedEventsProcessor noMatch = mock(AbstractStrikeOffPartnerProcessedEventsProcessor.class);
-        AbstractStrikeOffPartnerProcessedEventsProcessor match   = mock(AbstractStrikeOffPartnerProcessedEventsProcessor.class);
-
-        when(noMatch.supports(ProcessedEventType.OBJECTION)).thenReturn(false);
-        when(match.supports(ProcessedEventType.OBJECTION)).thenReturn(true);
+        ProcessedObjectionsProcessor noMatch = mock(ProcessedObjectionsProcessor.class);
+        ProcessedObjectionsProcessor match = mock(ProcessedObjectionsProcessor.class);
 
         ProcessorDispatcher newDispatcher = new ProcessorDispatcher(List.of(), List.of(noMatch, match));
         StrikeOffPartnerObjectionsProcessed msg = message(ProcessedEventType.OBJECTION, wasSuccessful);
+
+        when(noMatch.eventTypeSupported(msg)).thenReturn(false);
+        when(match.eventTypeSupported(msg)).thenReturn(true);
 
         newDispatcher.dispatch(msg);
 
@@ -134,4 +133,3 @@ class ProcessorDispatcherTest {
                 .build();
     }
 }
-

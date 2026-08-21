@@ -13,18 +13,22 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
  *
  * <p>This implementation handles only {@link ProcessedEventType#OBJECTION} messages and
  * performs objection-specific processing after base validation is completed in
- * {@link AbstractStrikeOffPartnerProcessedEventsProcessor#process(StrikeOffPartnerObjectionsProcessed)}.
+ * {@link AbstractObjectionsEventsProcessor#process(org.apache.avro.specific.SpecificRecordBase)}.
  */
 @Component
-public class StrikeOffPartnerProcessedObjectionsProcessor extends AbstractStrikeOffPartnerProcessedEventsProcessor {
+public class ProcessedObjectionsProcessor
+        extends AbstractObjectionsEventsProcessor<StrikeOffPartnerObjectionsProcessed> {
 
-    protected StrikeOffPartnerProcessedObjectionsProcessor(InternalApiClient internalApiClient) {
-        super(internalApiClient);
+    protected ProcessedObjectionsProcessor(InternalApiClient internalApiClient) {
+        super(internalApiClient,
+                StrikeOffPartnerObjectionsProcessed::getStrikeOffEventId,
+                StrikeOffPartnerObjectionsProcessed::getCompanyNumber,
+                StrikeOffPartnerObjectionsProcessed::getStrikeOffEventId);
     }
 
     @Override
-    protected boolean supports(ProcessedEventType eventType) {
-        return eventType == ProcessedEventType.OBJECTION;
+    protected boolean eventTypeSupported(StrikeOffPartnerObjectionsProcessed message) {
+        return message.getEventType() == ProcessedEventType.OBJECTION;
     }
 
     @Override
@@ -49,5 +53,10 @@ public class StrikeOffPartnerProcessedObjectionsProcessor extends AbstractStrike
                 ObjectionProcessingStatus.OBJECTION_REJECTED;
         updateObjectionStatus(message, status);
         LOG.info("Updated objection status to " + status + " for objectionId=" + objection.getObjectionId());
+    }
+
+    @Override
+    protected void validate(StrikeOffPartnerObjectionsProcessed message) {
+        validateProcessedEvent(message);
     }
 }

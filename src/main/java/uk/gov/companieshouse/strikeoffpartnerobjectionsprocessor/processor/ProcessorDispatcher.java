@@ -8,13 +8,10 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 import java.util.List;
 
 /**
- * Dispatches {@link StrikeOffPartnerObjections} messages to the first processor
+ * Dispatches {@link StrikeOffPartnerObjections} and {@link StrikeOffPartnerObjectionsProcessed} messages to the first processor
  * that declares support for the message event type.
  *
- * <p>This component coordinates available {@link AbstractStrikeOffPartnerIncomingEventsProcessor}
- * implementations and routes each message to a single matching processor.
- *
- * <p>This component coordinates available {@link AbstractStrikeOffPartnerProcessedEventsProcessor}
+ * <p>This component coordinates available {@link AbstractEventsProcessor}
  * implementations and routes each message to a single matching processor.
  *
  * <p>If no processor supports the message event type, an
@@ -23,17 +20,19 @@ import java.util.List;
  */
 @Component
 public class ProcessorDispatcher {
-    private final List<AbstractStrikeOffPartnerIncomingEventsProcessor> processors;
-    private final List<AbstractStrikeOffPartnerProcessedEventsProcessor> processedEventsProcessors;
+    private final List<AbstractEventsProcessor<StrikeOffPartnerObjections>> processors;
+    private final List<AbstractEventsProcessor<StrikeOffPartnerObjectionsProcessed>> processedEventsProcessors;
 
-    public ProcessorDispatcher(List<AbstractStrikeOffPartnerIncomingEventsProcessor> processors, List<AbstractStrikeOffPartnerProcessedEventsProcessor> processedEventsProcessors) {
+    public ProcessorDispatcher(
+            List<AbstractEventsProcessor<StrikeOffPartnerObjections>> processors,
+            List<AbstractEventsProcessor<StrikeOffPartnerObjectionsProcessed>> processedEventsProcessors) {
         this.processors = processors;
         this.processedEventsProcessors = processedEventsProcessors;
     }
 
     public void dispatch(StrikeOffPartnerObjections message) {
         processors.stream()
-                .filter(p -> p.supports(message.getEventType()))
+                .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
                 .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
                 .process(message);
@@ -41,7 +40,7 @@ public class ProcessorDispatcher {
 
     public void dispatch(StrikeOffPartnerObjectionsProcessed message) {
         processedEventsProcessors.stream()
-                .filter(p -> p.supports(message.getEventType()))
+                .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
                 .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
                 .process(message);
