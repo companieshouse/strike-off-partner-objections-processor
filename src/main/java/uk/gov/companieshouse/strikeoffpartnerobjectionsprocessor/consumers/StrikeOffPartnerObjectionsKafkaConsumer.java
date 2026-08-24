@@ -131,6 +131,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
     private Map<String, Object> buildKafkaLogMapForProcessedObjections(ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord) {
         StrikeOffPartnerObjectionsProcessed msg = consumerRecord.value();
         Map<String, Object> logMap = buildBaseKafkaLogMap(consumerRecord);
+        logMap.put("company_number", msg != null ? msg.getCompanyNumber() : null);
         logMap.put("strike_off_event_id", msg != null ? msg.getStrikeOffEventId() : null);
         logMap.put("event_type", msg != null ? msg.getEventType() : null);
         logMap.put("success_failure_indicator", msg != null ? msg.getSuccessFailureIndicator() : null);

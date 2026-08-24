@@ -253,6 +253,10 @@ class AbstractEventsProcessorTest {
                         "processedEventType"),
                 Arguments.of((Consumer<StrikeOffPartnerObjectionsProcessed>) value -> value.setSuccessFailureIndicator(null),
                         "SuccessFailureIndicator"),
+                Arguments.of((Consumer<StrikeOffPartnerObjectionsProcessed>) value -> value.setCompanyNumber(null),
+                        "Company number"),
+                Arguments.of((Consumer<StrikeOffPartnerObjectionsProcessed>) value -> value.setStrikeOffEventId(" "),
+                        "StrikeOffEventId"),
                 Arguments.of((Consumer<StrikeOffPartnerObjectionsProcessed>) value -> value.setCompanyNumber(" "),
                         "Company number"));
     }
