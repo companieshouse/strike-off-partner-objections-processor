@@ -1,6 +1,5 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers;
 
-
 import consumer.exception.NonRetryableErrorException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.BackOff;
@@ -84,12 +83,12 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             dltStrategy = DltStrategy.FAIL_ON_ERROR,
             autoCreateTopics = "false",
             exclude = NonRetryableErrorException.class,
-            kafkaTemplate = "kafkaConsumerTemplate"
+            kafkaTemplate = "processedKafkaConsumerTemplate"
     )
     @KafkaListener(
             topics = "${kafka.topic.strikeoff.processed-objections}",
             groupId = "${kafka.strikeoff.processed-objections.group-id}",
-            containerFactory = "kafkaListenerContainerFactory"
+            containerFactory = "processedKafkaListenerContainerFactory"
     )
     public void consumeProcessedStrikeOffObjectionsMessage(
             final @Header( name = RetryTopicHeaders.DEFAULT_HEADER_ATTEMPTS, required = false ) Integer attemptNumber,
