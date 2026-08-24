@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -123,6 +124,32 @@ class StrikeOffProcessedObjectionsProcessorTest {
                 ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
         verify(handler).updateObjectionStatus(anyString(), requestCaptor.capture());
         assertNull(requestCaptor.getValue().getInitialExpirationOn());
+    }
+
+    @Test
+    void process_successObjection_withNullInitialExpiration_doesNotSetInitialExpirationOn() throws Exception {
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler = stubUpdateSuccess();
+        StrikeOffPartnerObjectionsProcessed message = message(EventType.OBJECTION, SuccessFailureIndicator.SUCCESS);
+        message.setInitialExpirationOn(null);
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+        verify(handler).updateObjectionStatus(anyString(), requestCaptor.capture());
+        assertNull(requestCaptor.getValue().getInitialExpirationOn());
+    }
+
+    @Test
+    void process_objection_usesExpectedInternalStatusUri() throws Exception {
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler = stubUpdateSuccess();
+        StrikeOffPartnerObjectionsProcessed message = message(EventType.OBJECTION, SuccessFailureIndicator.SUCCESS);
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        verify(handler).updateObjectionStatus(
+                eq("/internal/company/12345678/strike-off-partner-objections/strike-001/status"),
+                any(UpdateObjectionStatusRequest.class));
     }
 
     private PrivateStrikeOffPartnerObjectionsResourceHandler stubUpdateSuccess() throws Exception {

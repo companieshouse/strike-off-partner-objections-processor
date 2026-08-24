@@ -64,7 +64,7 @@ public class StrikeOffProcessedObjectionsKafkaConsumer {
             throw new NonRetryableErrorException("Missing StrikeOffPartnerObjectionsProcessed payload");
         }
         final String eventId = event.getStrikeOffEventId() != null ? event.getStrikeOffEventId() : "unknown";
-        var logMap = buildKafkaLogMap(consumerRecord);
+        var logMap = buildKafkaLogMap(consumerRecord, event);
         try {
             LOG.infoContext(eventId, "Consumed processed outcome event", logMap);
             LOG.infoContext(eventId, "Kafka retry attempt: " + (attemptNumber == null ? 1 : attemptNumber), logMap);
@@ -76,17 +76,17 @@ public class StrikeOffProcessedObjectionsKafkaConsumer {
         }
     }
 
-    private Map<String, Object> buildKafkaLogMap(ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord) {
-        StrikeOffPartnerObjectionsProcessed msg = consumerRecord.value();
+    private Map<String, Object> buildKafkaLogMap(ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord,
+                                                  StrikeOffPartnerObjectionsProcessed message) {
         var logMap = new DataMap.Builder()
                 .topic(consumerRecord.topic())
                 .partition(consumerRecord.partition())
                 .offset(consumerRecord.offset())
-                .companyNumber(msg != null ? msg.getCompanyNumber() : null)
+                .companyNumber(message.getCompanyNumber())
                 .build().getLogMap();
-        logMap.put("strike_off_event_id", msg != null ? msg.getStrikeOffEventId() : null);
-        logMap.put("event_type", msg != null ? msg.getEventType() : null);
-        logMap.put("success_failure_indicator", msg != null ? msg.getSuccessFailureIndicator() : null);
+        logMap.put("strike_off_event_id", message.getStrikeOffEventId());
+        logMap.put("event_type", message.getEventType());
+        logMap.put("success_failure_indicator", message.getSuccessFailureIndicator());
         return logMap;
     }
 }

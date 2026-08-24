@@ -15,6 +15,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,6 +51,17 @@ class AbstractStrikeOffProcessedOutcomeProcessorTest {
     void validate_missingStrikeOffEventId_throwsInvalidMessage() {
         StrikeOffPartnerObjectionsProcessed message = validMessage();
         message.setStrikeOffEventId(" ");
+
+        InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(message));
+
+        assertTrue(ex.getMessage().contains("strike_off_event_id"));
+    }
+
+    @Test
+    void validate_nullStrikeOffEventId_throwsInvalidMessage() {
+        StrikeOffPartnerObjectionsProcessed message = validMessage();
+        message.setStrikeOffEventId(null);
 
         InvalidStrikeOffMessageException ex = assertThrows(InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
@@ -125,6 +137,24 @@ class AbstractStrikeOffProcessedOutcomeProcessorTest {
         RuntimeException result = processor.mapApiException("evt-001", new IllegalStateException("boom"));
         assertFalse(result instanceof InvalidStrikeOffMessageException);
         assertTrue(result.getMessage().contains("Retryable error"));
+    }
+
+    @Test
+    void buildObjectionStatusUri_buildsExpectedUri() {
+        StrikeOffPartnerObjectionsProcessed message = validMessage();
+
+        String uri = processor.buildObjectionStatusUri(message, "evt-123");
+
+        assertEquals("/internal/company/12345678/strike-off-partner-objections/evt-123/status", uri);
+    }
+
+    @Test
+    void buildWithdrawalStatusUri_buildsExpectedUri() {
+        StrikeOffPartnerObjectionsProcessed message = validMessage();
+
+        String uri = processor.buildWithdrawalStatusUri(message, "evt-123");
+
+        assertEquals("/internal/company/12345678/strike-off-partner-objections-withdrawals/evt-123/withdrawal-status", uri);
     }
 
     private StrikeOffPartnerObjectionsProcessed validMessage() {

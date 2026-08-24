@@ -72,6 +72,23 @@ class StrikeOffProcessedObjectionsKafkaConsumerTest {
                 () -> consumer.consumeProcessedObjectionsMessage(1, recordWithNullPayload));
     }
 
+    @Test
+    void consumeMessage_nullEventId_usesFallbackAndStillDispatches() {
+        StrikeOffPartnerObjectionsProcessed event = new StrikeOffPartnerObjectionsProcessed(
+                null,
+                SuccessFailureIndicator.SUCCESS,
+                null,
+                EventType.OBJECTION,
+                LocalDate.of(2026, 12, 31),
+                "12345678"
+        );
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord =
+                new ConsumerRecord<>("strike-off-partner-objections-processed", 0, 0L, null, event);
+
+        assertDoesNotThrow(() -> consumer.consumeProcessedObjectionsMessage(2, consumerRecord));
+        verify(processedOutcomeDispatcher).dispatch(event);
+    }
+
     private ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> validRecord() {
         StrikeOffPartnerObjectionsProcessed event = new StrikeOffPartnerObjectionsProcessed(
                 "strike-001",
