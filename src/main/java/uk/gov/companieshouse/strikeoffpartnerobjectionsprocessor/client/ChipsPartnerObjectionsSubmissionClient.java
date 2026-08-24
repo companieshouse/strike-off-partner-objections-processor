@@ -1,6 +1,5 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -16,12 +15,9 @@ public class ChipsPartnerObjectionsSubmissionClient {
     private final RestTemplate restTemplate;
     private final String chipsRestInterfaceBaseUrl;
 
-    @Autowired
-    public ChipsPartnerObjectionsSubmissionClient(@Value("${chips.rest-interface.base-url}") String chipsRestInterfaceBaseUrl) {
-        this(new RestTemplate(), chipsRestInterfaceBaseUrl);
-    }
-
-    ChipsPartnerObjectionsSubmissionClient(RestTemplate restTemplate, String chipsRestInterfaceBaseUrl) {
+    public ChipsPartnerObjectionsSubmissionClient(
+            RestTemplate restTemplate,
+            @Value("${chips.rest-interface.base-url}") String chipsRestInterfaceBaseUrl) {
         this.restTemplate = restTemplate;
         this.chipsRestInterfaceBaseUrl = chipsRestInterfaceBaseUrl;
     }
