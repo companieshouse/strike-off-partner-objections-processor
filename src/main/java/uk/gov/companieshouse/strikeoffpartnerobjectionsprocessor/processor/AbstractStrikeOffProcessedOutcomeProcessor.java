@@ -1,8 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import uk.gov.companieshouse.api.InternalApiClient;
-import uk.gov.companieshouse.api.error.ApiErrorResponseException;
-import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.processed.StrikeOffPartnerObjectionsProcessed;
@@ -82,28 +80,7 @@ public abstract class AbstractStrikeOffProcessedOutcomeProcessor {
      * @return a runtime exception to propagate
      **/
     protected RuntimeException mapApiException(String eventId, Exception ex) {
-        if (ex instanceof URIValidationException) {
-            return new InvalidStrikeOffMessageException(
-                    "Non-retryable URI validation error for eventId=" + eventId, ex);
-        }
-
-        if (ex instanceof ApiErrorResponseException apiEx) {
-            int status = apiEx.getStatusCode();
-            LOG.info("updateObjectionStatus failed: status=" + status
-                    + ", eventId=" + eventId);
-            // 4xx (except 429) => permanent/client error => do not retry
-            if (status >= 400 && status < 500 && status != 429) {
-                return new InvalidStrikeOffMessageException(
-                        "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
-            }
-            // 5xx, 429 => transient => retry
-            return new RuntimeException(
-                    "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
-        }
-
-        // Unknown/technical failure => retry
-        return new RuntimeException(
-                "Retryable error for eventId=" + eventId, ex);
+        return ApiExceptionMapper.map("updateObjectionStatus", eventId, ex, LOG);
     }
 
     protected String buildObjectionStatusUri(StrikeOffPartnerObjectionsProcessed message,
