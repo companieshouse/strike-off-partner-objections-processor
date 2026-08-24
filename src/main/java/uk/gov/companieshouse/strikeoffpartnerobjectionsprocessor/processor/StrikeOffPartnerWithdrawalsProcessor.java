@@ -7,6 +7,7 @@ import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -22,10 +23,14 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  */
 @Component
 public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient;
 
 
-    protected StrikeOffPartnerWithdrawalsProcessor(InternalApiClient internalApiClient) {
+    protected StrikeOffPartnerWithdrawalsProcessor(
+            InternalApiClient internalApiClient,
+            ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
         super(internalApiClient);
+        this.chipsPartnerObjectionsSubmissionClient = chipsPartnerObjectionsSubmissionClient;
     }
 
     @Override
@@ -60,6 +65,7 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message);
         LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        submitToChips(message);
     }
 
     private WithdrawAllObjectionsResponse getWithdrawalDetails(StrikeOffPartnerObjections message) {
@@ -95,5 +101,15 @@ public class StrikeOffPartnerWithdrawalsProcessor extends AbstractStrikeOffPartn
          } catch (Exception e) {
              throw mapApiException(message.getEventId(), e);
          }
+    }
+
+    private void submitToChips(StrikeOffPartnerObjections message) {
+        try {
+            chipsPartnerObjectionsSubmissionClient.submit(message);
+            LOG.info("Submitted withdrawal to CHIPS endpoint for eventId=" + message.getEventId());
+        } catch (Exception e) {
+            LOG.info("Failed to submit withdrawal to CHIPS endpoint for eventId=" + message.getEventId());
+            throw mapApiException(message.getEventId(), e);
+        }
     }
 }

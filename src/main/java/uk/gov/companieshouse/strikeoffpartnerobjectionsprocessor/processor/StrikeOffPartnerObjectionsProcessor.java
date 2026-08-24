@@ -7,6 +7,7 @@ import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTIONS;
@@ -21,11 +22,15 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  */
 @Component
 public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartnerEventsProcessor {
+    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient;
 
 
 
-    protected StrikeOffPartnerObjectionsProcessor(InternalApiClient internalApiClient) {
+    protected StrikeOffPartnerObjectionsProcessor(
+            InternalApiClient internalApiClient,
+            ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
         super(internalApiClient);
+        this.chipsPartnerObjectionsSubmissionClient = chipsPartnerObjectionsSubmissionClient;
     }
 
     @Override
@@ -51,6 +56,7 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
         // Update status to objection-processing
         updateObjectionStatus(message);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
+        submitToChips(message);
     }
 
     private BaseObjectionResponse getObjectionDetails(StrikeOffPartnerObjections message) {
@@ -84,6 +90,16 @@ public class StrikeOffPartnerObjectionsProcessor extends AbstractStrikeOffPartne
                     + " for eventId=" + message.getEventId());
         } catch (Exception e) {
             LOG.info("Failed to update Objection status using api url: " + uri);
+            throw mapApiException(message.getEventId(), e);
+        }
+    }
+
+    private void submitToChips(StrikeOffPartnerObjections message) {
+        try {
+            chipsPartnerObjectionsSubmissionClient.submit(message);
+            LOG.info("Submitted objection to CHIPS endpoint for eventId=" + message.getEventId());
+        } catch (Exception e) {
+            LOG.info("Failed to submit objection to CHIPS endpoint for eventId=" + message.getEventId());
             throw mapApiException(message.getEventId(), e);
         }
     }

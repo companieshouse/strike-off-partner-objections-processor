@@ -7,6 +7,7 @@ import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -103,17 +104,11 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
         }
 
         if (ex instanceof ApiErrorResponseException apiEx) {
-            int status = apiEx.getStatusCode();
-            LOG.info("updateWithdrawalStatus failed: status=" + status
-                    + ", eventId=" + eventId);
-            // 4xx (except 429) => permanent/client error => do not retry
-            if (status >= 400 && status < 500 && status != 429) {
-                return new InvalidStrikeOffMessageException(
-                        "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
-            }
-            // 5xx, 429 => transient => retry
-            return new RuntimeException(
-                    "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
+            return classifyStatusCodeException(eventId, apiEx.getStatusCode(), ex);
+        }
+
+        if (ex instanceof ChipsSubmissionException chipsSubmissionException) {
+            return classifyStatusCodeException(eventId, chipsSubmissionException.getStatusCode(), ex);
         }
 
         // Unknown/technical failure => retry
@@ -125,5 +120,15 @@ public abstract class AbstractStrikeOffPartnerEventsProcessor {
     protected boolean isDuplicateRecord(String status,
                                         String processedStatus) {
         return processedStatus != null && processedStatus.equalsIgnoreCase(status);
+    }
+
+    private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
+        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
+        if (status >= 400 && status < 500 && status != 429) {
+            return new InvalidStrikeOffMessageException(
+                    "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
+        }
+        return new RuntimeException(
+                "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
     }
 }

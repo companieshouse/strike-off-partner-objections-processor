@@ -14,6 +14,8 @@ import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -23,15 +25,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class StrikeOffPartnerObjectionsProcessorTest {
 
     private final InternalApiClient internalApiClient = mock(InternalApiClient.class);
+    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient =
+            mock(ChipsPartnerObjectionsSubmissionClient.class);
     private final StrikeOffPartnerObjectionsProcessor processor =
-            new StrikeOffPartnerObjectionsProcessor(internalApiClient);
+            new StrikeOffPartnerObjectionsProcessor(internalApiClient, chipsPartnerObjectionsSubmissionClient);
 
     @Test
     void supportsObjections_butNotWithdrawals() {
@@ -58,6 +64,7 @@ class StrikeOffPartnerObjectionsProcessorTest {
         when(handler.updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(updateStatus);
 
         assertDoesNotThrow(() -> processor.process(validMessage()));
+        verify(chipsPartnerObjectionsSubmissionClient).submit(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -169,6 +176,7 @@ class StrikeOffPartnerObjectionsProcessorTest {
         // Then - verify both methods were called
         verify(handler).getObjection(anyString());
         verify(handler).updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any());
+        verify(chipsPartnerObjectionsSubmissionClient).submit(org.mockito.ArgumentMatchers.any());
     }
 
      @Test
@@ -396,6 +404,7 @@ class StrikeOffPartnerObjectionsProcessorTest {
          // Then - verify both API calls were made (validates complete flow)
          verify(handler).getObjection(anyString());
          verify(handler).updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any());
+         verify(chipsPartnerObjectionsSubmissionClient).submit(org.mockito.ArgumentMatchers.any());
      }
 
      @Test
@@ -434,6 +443,52 @@ class StrikeOffPartnerObjectionsProcessorTest {
          assertFalse(ex instanceof InvalidStrikeOffMessageException);
          assertTrue(ex.getMessage().contains("Retryable API error"));
      }
+
+    @Test
+    void doProcess_chipsSubmission400_isNonRetryable() throws Exception {
+        BaseObjectionResponse response = new BaseObjectionResponse()
+                .objectionId("objection-011")
+                .processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
+        PrivateStrikeOffPartnerObjectionsResourceHandler handler =
+                mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
+
+        GetObjection getObjection = mock(GetObjection.class);
+        when(getObjection.execute()).thenReturn(new ApiResponse<>(200, null, response));
+        when(handler.getObjection(anyString())).thenReturn(getObjection);
+
+        UpdateObjectionStatus updateStatus = mock(UpdateObjectionStatus.class);
+        when(updateStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
+        when(handler.updateObjectionStatus(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(updateStatus);
+
+        doThrow(new ChipsSubmissionException("bad request", 400))
+                .when(chipsPartnerObjectionsSubmissionClient)
+                .submit(org.mockito.ArgumentMatchers.any());
+
+        InvalidStrikeOffMessageException exception = assertThrows(InvalidStrikeOffMessageException.class,
+                () -> processor.process(validMessage()));
+        assertTrue(exception.getMessage().contains("Non-retryable API error"));
+    }
+
+    @Test
+    void doProcess_duplicateObjection_doesNotSubmitToChips() throws Exception {
+        StrikeOffPartnerObjections message = new StrikeOffPartnerObjections();
+        message.setEventId("event-123");
+
+        BaseObjectionResponse objectionResponse = new BaseObjectionResponse();
+        objectionResponse.setObjectionId("objection-123");
+        objectionResponse.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_PROCESSING);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<BaseObjectionResponse> apiResponse = mock(ApiResponse.class);
+        when(apiResponse.getData()).thenReturn(objectionResponse);
+        when(apiResponse.getStatusCode()).thenReturn(200);
+
+        stubGetObjection(apiResponse);
+
+        assertThrows(DuplicateRecordException.class, () -> processor.doProcess(message));
+        verify(chipsPartnerObjectionsSubmissionClient, never()).submit(org.mockito.ArgumentMatchers.any());
+    }
 
      // --- helpers ---
 

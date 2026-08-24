@@ -18,6 +18,8 @@ import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,8 +40,10 @@ import static org.mockito.Mockito.when;
 class StrikeOffPartnerWithdrawalsProcessorTest {
 
     private final InternalApiClient internalApiClient = mock(InternalApiClient.class);
+    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient =
+            mock(ChipsPartnerObjectionsSubmissionClient.class);
     private final StrikeOffPartnerWithdrawalsProcessor processor =
-            new StrikeOffPartnerWithdrawalsProcessor(internalApiClient);
+            new StrikeOffPartnerWithdrawalsProcessor(internalApiClient, chipsPartnerObjectionsSubmissionClient);
 
     @Test
     void supportsWithdrawals_butNotObjections() {
@@ -64,6 +69,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
                 ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
         verify(handler).updateWithdrawalStatus(anyString(), requestCaptor.capture());
         assertSame(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING, requestCaptor.getValue().getProcessingStatus());
+        verify(chipsPartnerObjectionsSubmissionClient).submit(any());
     }
 
     @ParameterizedTest
@@ -136,6 +142,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
 
         assertTrue(exception.getMessage().contains("Duplicate/complete Withdrawal skipped"));
         verify(handler, never()).updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class));
+        verify(chipsPartnerObjectionsSubmissionClient, never()).submit(any());
     }
 
     @Test
@@ -222,6 +229,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         assertTrue(exception.getMessage().contains("withdrawal-accepted"));
         assertTrue(exception.getMessage().contains("expected=WITHDRAWAL_REQUESTED"));
         verify(handler, never()).updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class));
+        verify(chipsPartnerObjectionsSubmissionClient, never()).submit(any());
     }
 
     @Test
@@ -241,6 +249,7 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
 
         assertTrue(exception.getMessage().contains("Duplicate/complete Withdrawal skipped"));
         verify(handler, never()).updateWithdrawalStatus(anyString(), any(UpdateWithdrawalStatusRequest.class));
+        verify(chipsPartnerObjectionsSubmissionClient, never()).submit(any());
     }
 
     @Test
@@ -262,6 +271,24 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
                 ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
         verify(handler).updateWithdrawalStatus(anyString(), requestCaptor.capture());
         assertSame(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING, requestCaptor.getValue().getProcessingStatus());
+        verify(chipsPartnerObjectionsSubmissionClient).submit(any());
+    }
+
+    @Test
+    void doProcess_chipsSubmission403_isNonRetryable() throws Exception {
+        WithdrawAllObjectionsResponse response = new WithdrawAllObjectionsResponse()
+                .withdrawalId("withdrawal-403")
+                .processingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
+        stubGetAndUpdateSuccess(response);
+        doThrow(new ChipsSubmissionException("forbidden", 403))
+                .when(chipsPartnerObjectionsSubmissionClient)
+                .submit(any());
+
+        InvalidStrikeOffMessageException exception = assertThrows(
+                InvalidStrikeOffMessageException.class,
+                () -> processor.process(withdrawalMessage()));
+
+        assertTrue(exception.getMessage().contains("Non-retryable API error"));
     }
 
     // --- helpers ---
