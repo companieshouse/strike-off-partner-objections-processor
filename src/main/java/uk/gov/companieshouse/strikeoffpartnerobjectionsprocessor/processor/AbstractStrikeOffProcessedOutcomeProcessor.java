@@ -31,6 +31,11 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  */
 public abstract class AbstractStrikeOffProcessedOutcomeProcessor {
 
+    private static final String OBJECTION_STATUS_URI_TEMPLATE =
+            INTERNAL_COMPANY_URI + "%s/strike-off-partner-objections/%s/status";
+    private static final String WITHDRAWAL_STATUS_URI_TEMPLATE =
+            INTERNAL_COMPANY_URI + "%s/strike-off-partner-objections-withdrawals/%s/withdrawal-status";
+
     protected final InternalApiClient internalApiClient;
 
     protected static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
@@ -101,14 +106,19 @@ public abstract class AbstractStrikeOffProcessedOutcomeProcessor {
                 "Retryable error for eventId=" + eventId, ex);
     }
 
-    protected String buildObjectionStatusUri(StrikeOffPartnerObjectionsProcessed message, String objectIdPath) {
-        return String.format(INTERNAL_COMPANY_URI + "%s/strike-off-partner-objections/%s/status",
-                message.getCompanyNumber(), objectIdPath);
+    protected String buildObjectionStatusUri(StrikeOffPartnerObjectionsProcessed message,
+                                             String objectionIdPath) {
+        return buildStatusUri(message, objectionIdPath, OBJECTION_STATUS_URI_TEMPLATE);
     }
 
     protected String buildWithdrawalStatusUri(StrikeOffPartnerObjectionsProcessed message, String withdrawalIdPath) {
-        return String.format(INTERNAL_COMPANY_URI + "%s/strike-off-partner-objections-withdrawals/%s/withdrawal-status",
-                message.getCompanyNumber(), withdrawalIdPath);
+        return buildStatusUri(message, withdrawalIdPath, WITHDRAWAL_STATUS_URI_TEMPLATE);
+    }
+
+    private String buildStatusUri(StrikeOffPartnerObjectionsProcessed message,
+                                  String idPath,
+                                  String uriTemplate) {
+        return String.format(uriTemplate, message.getCompanyNumber(), idPath);
     }
 }
 
