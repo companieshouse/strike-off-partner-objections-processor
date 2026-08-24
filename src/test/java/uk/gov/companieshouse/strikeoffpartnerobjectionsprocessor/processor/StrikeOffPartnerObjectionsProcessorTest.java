@@ -464,9 +464,10 @@ class StrikeOffPartnerObjectionsProcessorTest {
         doThrow(new ChipsSubmissionException("bad request", 400))
                 .when(chipsPartnerObjectionsSubmissionClient)
                 .submit(org.mockito.ArgumentMatchers.any());
+        StrikeOffPartnerObjections message = validMessage();
 
         InvalidStrikeOffMessageException exception = assertThrows(InvalidStrikeOffMessageException.class,
-                () -> processor.process(validMessage()));
+                () -> processor.process(message));
         assertTrue(exception.getMessage().contains("Non-retryable API error"));
     }
 

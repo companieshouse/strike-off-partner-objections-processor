@@ -53,10 +53,11 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withStatus(HttpStatus.FORBIDDEN));
+        StrikeOffPartnerObjections message = buildMessage(EventType.WITHDRAWAL);
 
         ChipsSubmissionException exception = assertThrows(
                 ChipsSubmissionException.class,
-                () -> client.submit(buildMessage(EventType.WITHDRAWAL)));
+                () -> client.submit(message));
 
         assertEquals(403, exception.getStatusCode());
     }
@@ -66,10 +67,11 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withStatus(HttpStatus.OK));
+        StrikeOffPartnerObjections message = buildMessage(EventType.OBJECTION);
 
         ChipsSubmissionException exception = assertThrows(
                 ChipsSubmissionException.class,
-                () -> client.submit(buildMessage(EventType.OBJECTION)));
+                () -> client.submit(message));
 
         assertEquals(200, exception.getStatusCode());
     }

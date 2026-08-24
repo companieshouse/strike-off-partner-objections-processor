@@ -1,5 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -11,9 +12,11 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOff
 
 @Component
 public class ChipsPartnerObjectionsSubmissionClient {
+    private static final int TRANSPORT_ERROR_STATUS = 503;
     private final RestTemplate restTemplate;
     private final String chipsRestInterfaceBaseUrl;
 
+    @Autowired
     public ChipsPartnerObjectionsSubmissionClient(@Value("${chips.rest-interface.base-url}") String chipsRestInterfaceBaseUrl) {
         this(new RestTemplate(), chipsRestInterfaceBaseUrl);
     }
@@ -33,7 +36,7 @@ public class ChipsPartnerObjectionsSubmissionClient {
         } catch (HttpStatusCodeException exception) {
             throw new ChipsSubmissionException("CHIPS submission failed", exception.getStatusCode().value(), exception);
         } catch (RestClientException exception) {
-            throw new RuntimeException("CHIPS submission failed due to transport error", exception);
+            throw new ChipsSubmissionException("CHIPS submission failed due to transport error", TRANSPORT_ERROR_STATUS, exception);
         }
 
         int statusCode = response.getStatusCode().value();

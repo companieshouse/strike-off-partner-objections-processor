@@ -283,10 +283,11 @@ class StrikeOffPartnerWithdrawalsProcessorTest {
         doThrow(new ChipsSubmissionException("forbidden", 403))
                 .when(chipsPartnerObjectionsSubmissionClient)
                 .submit(any());
+        StrikeOffPartnerObjections message = withdrawalMessage();
 
         InvalidStrikeOffMessageException exception = assertThrows(
                 InvalidStrikeOffMessageException.class,
-                () -> processor.process(withdrawalMessage()));
+                () -> processor.process(message));
 
         assertTrue(exception.getMessage().contains("Non-retryable API error"));
     }
