@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import org.apache.avro.specific.SpecificRecordBase;
@@ -62,8 +63,9 @@ public class IncomingWithdrawalsProcessor
                     + ", expected=WITHDRAWAL_REQUESTED for withdrawalId=" + withdrawalDetails.getWithdrawalId());
         }
 
-        // Update status to withdrawal-processing (SDK support pending)
-        updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+        UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
+        request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+        updateWithdrawalStatus(message, request);
         LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
         submitToChips(message, chipsPartnerObjectionsSubmissionClient, "withdrawal");
     }

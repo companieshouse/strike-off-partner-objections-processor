@@ -102,9 +102,11 @@ class AbstractWithdrawalsEventsProcessorTest {
         when(updateStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
         ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
                 ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
+        UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
+        request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
 
         assertDoesNotThrow(() -> processor.updateWithdrawalStatus(
-                message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING));
+                message, request));
 
         verify(handler).updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), requestCaptor.capture());
         assertEquals(
@@ -119,11 +121,13 @@ class AbstractWithdrawalsEventsProcessorTest {
         when(handler.updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), any(UpdateWithdrawalStatusRequest.class)))
                 .thenReturn(updateStatus);
         when(updateStatus.execute()).thenThrow(cause);
+        UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
+        request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
                 () -> processor.updateWithdrawalStatus(
-                        message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING));
+                        message, request));
 
         assertEquals("Retryable error for eventId=" + EVENT_ID, exception.getMessage());
         assertSame(cause, exception.getCause());

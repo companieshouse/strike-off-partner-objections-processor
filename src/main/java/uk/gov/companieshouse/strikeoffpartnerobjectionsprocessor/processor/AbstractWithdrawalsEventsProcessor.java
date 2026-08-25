@@ -4,7 +4,6 @@ import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
-import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 
 import java.util.function.Function;
 
@@ -42,11 +41,6 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         }
     }
 
-    protected final void updateWithdrawalStatus(T message, WithdrawalProcessingStatus status) {
-        UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
-        request.setProcessingStatus(status);
-        updateWithdrawalStatus(message, request);
-    }
 
     protected final void updateWithdrawalStatus(T message, UpdateWithdrawalStatusRequest request) {
         String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
