@@ -3,11 +3,14 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.config;
 import consumer.deserialization.AvroDeserializer;
 import consumer.serialization.AvroSerializer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -16,11 +19,12 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.test.util.ReflectionTestUtils;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.mock;
 
 class KafkaConsumerConfigTest {
 
@@ -31,6 +35,7 @@ class KafkaConsumerConfigTest {
         config = new KafkaConsumerConfig();
         ReflectionTestUtils.setField(config, "bootstrapServers", "localhost:9092");
         ReflectionTestUtils.setField(config, "groupId",          "test-group");
+        ReflectionTestUtils.setField(config, "processedGroupId", "processed-test-group");
         ReflectionTestUtils.setField(config, "sessionTimeout",   10000);
         ReflectionTestUtils.setField(config, "maxPollInterval",  300000);
         ReflectionTestUtils.setField(config, "heartbeatInterval",3000);
@@ -75,6 +80,18 @@ class KafkaConsumerConfigTest {
                 factory.getConfigurationProperties().get(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG));
         assertEquals(500,
                 factory.getConfigurationProperties().get(ConsumerConfig.MAX_POLL_RECORDS_CONFIG));
+        assertAvroEventClass(factory, StrikeOffPartnerObjections.class);
+    }
+
+    @Test
+    void processedConsumerFactory_usesProcessedEventTypeAndGroup() {
+        DefaultKafkaConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> factory =
+                (DefaultKafkaConsumerFactory<String, StrikeOffPartnerObjectionsProcessed>)
+                        config.processedConsumerFactory();
+
+        assertEquals("processed-test-group",
+                factory.getConfigurationProperties().get(ConsumerConfig.GROUP_ID_CONFIG));
+        assertAvroEventClass(factory, StrikeOffPartnerObjectionsProcessed.class);
     }
 
     @Test
@@ -96,21 +113,76 @@ class KafkaConsumerConfigTest {
     }
 
     @Test
+    void processedProducerFactory_usesAvroSerializer() {
+        DefaultKafkaProducerFactory<String, StrikeOffPartnerObjectionsProcessed> factory =
+                (DefaultKafkaProducerFactory<String, StrikeOffPartnerObjectionsProcessed>)
+                        config.processedProducerFactory();
+
+        assertEquals("localhost:9092",
+                factory.getConfigurationProperties().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
+        assertEquals(AvroSerializer.class,
+                factory.getConfigurationProperties().get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
+    }
+
+    @Test
     void kafkaConsumerTemplate_isNotNull() {
         KafkaTemplate<String, StrikeOffPartnerObjections> template =
                 config.kafkaConsumerTemplate(config.producerFactory());
         assertNotNull(template);
     }
 
-    @SuppressWarnings("unchecked")
+    @Test
+    void processedKafkaConsumerTemplate_isNotNull() {
+        KafkaTemplate<String, StrikeOffPartnerObjectionsProcessed> template =
+                config.processedKafkaConsumerTemplate(config.processedProducerFactory());
+        assertNotNull(template);
+    }
+
     @Test
     void kafkaListenerContainerFactory_consumerFactoryIsSet() {
         ConsumerFactory<String, StrikeOffPartnerObjections> consumerFactory = config.consumerFactory();
-        KafkaTemplate<String, StrikeOffPartnerObjections> template = mock(KafkaTemplate.class);
+        KafkaTemplate<String, StrikeOffPartnerObjections> template =
+                config.kafkaConsumerTemplate(config.producerFactory());
 
         ConcurrentKafkaListenerContainerFactory<String, StrikeOffPartnerObjections> factory =
                 config.kafkaListenerContainerFactory(consumerFactory, template);
         assertNotNull(factory);
         assertEquals(consumerFactory, factory.getConsumerFactory());
+    }
+
+    @Test
+    void processedKafkaListenerContainerFactory_consumerFactoryIsSet() {
+        ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> consumerFactory =
+                config.processedConsumerFactory();
+        KafkaTemplate<String, StrikeOffPartnerObjectionsProcessed> template =
+                config.processedKafkaConsumerTemplate(config.processedProducerFactory());
+
+        ConcurrentKafkaListenerContainerFactory<String, StrikeOffPartnerObjectionsProcessed> factory =
+                config.processedKafkaListenerContainerFactory(consumerFactory, template);
+
+        assertNotNull(factory);
+        assertEquals(consumerFactory, factory.getConsumerFactory());
+    }
+
+    @Test
+    void processedListener_usesProcessedKafkaBeans() throws NoSuchMethodException {
+        var method = StrikeOffPartnerObjectionsKafkaConsumer.class.getDeclaredMethod(
+                "consumeProcessedStrikeOffObjectionsMessage", Integer.class, ConsumerRecord.class);
+
+        assertEquals("processedKafkaConsumerTemplate",
+                method.getAnnotation(RetryableTopic.class).kafkaTemplate());
+        assertEquals("processedKafkaListenerContainerFactory",
+                method.getAnnotation(KafkaListener.class).containerFactory());
+    }
+
+    private static void assertAvroEventClass(
+            DefaultKafkaConsumerFactory<?, ?> factory, Class<?> expectedEventClass) {
+        Object errorHandlingDeserializer = factory.getValueDeserializer();
+        assert errorHandlingDeserializer != null;
+        Object avroDeserializer =
+                ReflectionTestUtils.getField(errorHandlingDeserializer, "delegate");
+        assertNotNull(avroDeserializer);
+        assertEquals(expectedEventClass,
+                ReflectionTestUtils.getField(avroDeserializer, "avroClass"));
     }
 }
