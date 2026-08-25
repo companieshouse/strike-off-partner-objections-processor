@@ -8,6 +8,8 @@ import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -70,6 +72,19 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
         return eventIdGetter.apply(message);
     }
 
+    protected final void submitToChips(
+            StrikeOffPartnerObjections message,
+            ChipsPartnerObjectionsSubmissionClient submissionClient,
+            String eventLabel) {
+        try {
+            submissionClient.submit(message);
+            LOG.info("Submitted " + eventLabel + " to CHIPS endpoint for eventId=" + message.getEventId());
+        } catch (Exception exception) {
+            LOG.info("Failed to submit " + eventLabel + " to CHIPS endpoint for eventId=" + message.getEventId());
+            throw mapApiException(message.getEventId(), exception);
+        }
+    }
+
     protected final void validateIncomingEvent(StrikeOffPartnerObjections message) {
         if (message == null) {
             throw new InvalidStrikeOffMessageException("Missing message");
@@ -112,23 +127,22 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
      * @return a runtime exception to propagate
      **/
     protected final RuntimeException mapApiException(T message, Exception exception) {
-        String eventId = getEventId(message);
+        return mapApiException(getEventId(message), exception);
+    }
+
+    private RuntimeException mapApiException(String eventId, Exception exception) {
         if (exception instanceof URIValidationException) {
             return new InvalidStrikeOffMessageException(
                     "Non-retryable URI validation error for eventId=" + eventId, exception);
         }
 
+        if (exception instanceof ChipsSubmissionException chipsSubmissionException) {
+            return classifyStatusCodeException(
+                    eventId, chipsSubmissionException.getStatusCode(), chipsSubmissionException);
+        }
+
         if (exception instanceof ApiErrorResponseException apiException) {
-            int status = apiException.getStatusCode();
-            LOG.info("API request failed: status=" + status + ", eventId=" + eventId);
-            // 4xx (except 429) => permanent/client error => do not retry
-            if (status >= 400 && status < 500 && status != 429) {
-                return new InvalidStrikeOffMessageException(
-                        "Non-retryable API error (status=" + status + ") for eventId=" + eventId, exception);
-            }
-            // 5xx, 429 => transient => retry
-            return new RuntimeException(
-                    "Retryable API error (status=" + status + ") for eventId=" + eventId, exception);
+            return classifyStatusCodeException(eventId, apiException.getStatusCode(), apiException);
         }
 
         // Unknown/technical failure => retry
@@ -137,5 +151,15 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
     protected final boolean isDuplicateRecord(String status, String processedStatus) {
         return processedStatus != null && processedStatus.equalsIgnoreCase(status);
+    }
+
+    private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
+        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
+        if (status >= 400 && status < 500 && status != 429) {
+            return new InvalidStrikeOffMessageException(
+                    "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
+        }
+        return new RuntimeException(
+                "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
     }
 }

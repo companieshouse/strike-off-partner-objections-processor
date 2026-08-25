@@ -6,6 +6,7 @@ import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 /**
@@ -18,12 +19,14 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 @Component
 public class IncomingObjectionsProcessor
         extends AbstractObjectionsEventsProcessor<StrikeOffPartnerObjections> {
+    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient;
 
-    protected IncomingObjectionsProcessor(InternalApiClient internalApiClient) {
+    protected IncomingObjectionsProcessor(InternalApiClient internalApiClient, ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
         super(internalApiClient,
                 StrikeOffPartnerObjections::getEventId,
                 StrikeOffPartnerObjections::getCompanyNumber,
                 StrikeOffPartnerObjections::getStrikeOffEventId);
+        this.chipsPartnerObjectionsSubmissionClient = chipsPartnerObjectionsSubmissionClient;
     }
 
     @Override
@@ -52,6 +55,7 @@ public class IncomingObjectionsProcessor
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
+        submitToChips(message, chipsPartnerObjectionsSubmissionClient, "objection");
     }
 
     @Override
