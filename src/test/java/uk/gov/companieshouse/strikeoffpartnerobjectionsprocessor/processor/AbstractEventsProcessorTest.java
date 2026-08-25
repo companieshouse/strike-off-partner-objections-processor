@@ -7,7 +7,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
@@ -42,13 +41,10 @@ class AbstractEventsProcessorTest {
     private final AtomicBoolean validated = new AtomicBoolean();
     private final AtomicBoolean processed = new AtomicBoolean();
 
-    @Mock
-    private InternalApiClient internalApiClient;
-
     @BeforeEach
     void setUp() {
         message = mock(SpecificRecordBase.class);
-        processor = new AbstractEventsProcessor<>(internalApiClient,
+        processor = new AbstractEventsProcessor<>(mock(InternalApiClient.class),
                 value -> "evt-001",
                 value -> "12345678",
                 value -> "strike-001") {
