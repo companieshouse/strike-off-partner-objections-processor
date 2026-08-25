@@ -65,21 +65,11 @@ public class IncomingWithdrawalsProcessor
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
-        submitToChips(message);
+        submitToChips(message, chipsPartnerObjectionsSubmissionClient, "withdrawal");
     }
 
     @Override
     protected void validate(StrikeOffPartnerObjections message) {
         validateIncomingEvent(message);
-    }
-
-    private void submitToChips(StrikeOffPartnerObjections message) {
-        try {
-            chipsPartnerObjectionsSubmissionClient.submit(message);
-            LOG.info("Submitted withdrawal to CHIPS endpoint for eventId=" + message.getEventId());
-        } catch (Exception e) {
-            LOG.info("Failed to submit withdrawal to CHIPS endpoint for eventId=" + message.getEventId());
-            throw mapApiException(message, e);
-        }
     }
 }

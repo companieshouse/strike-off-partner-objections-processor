@@ -55,21 +55,11 @@ public class IncomingObjectionsProcessor
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
-        submitToChips(message);
+        submitToChips(message, chipsPartnerObjectionsSubmissionClient, "objection");
     }
 
     @Override
     protected void validate(StrikeOffPartnerObjections message) {
         validateIncomingEvent(message);
-    }
-
-    private void submitToChips(StrikeOffPartnerObjections message) {
-        try {
-            chipsPartnerObjectionsSubmissionClient.submit(message);
-            LOG.info("Submitted objection to CHIPS endpoint for eventId=" + message.getEventId());
-        } catch (Exception e) {
-            LOG.info("Failed to submit objection to CHIPS endpoint for eventId=" + message.getEventId());
-            throw mapApiException(message, e);
-        }
     }
 }
