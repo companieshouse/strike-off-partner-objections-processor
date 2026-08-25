@@ -24,7 +24,7 @@
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-build-helper-plugin.version>3.6.1</maven-build-helper-plugin.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-        <kafka-models.version>3.0.36</kafka-models.version>
+        <kafka-models.version>3.0.39</kafka-models.version>
         <api-sdk-manager-java-library.version>3.0.25</api-sdk-manager-java-library.version>
         <!-- Override vulnerable Tomcat version -->
         <tomcat.version>11.0.24</tomcat.version>
