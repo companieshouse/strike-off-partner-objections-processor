@@ -3,6 +3,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
@@ -48,12 +49,17 @@ public class ProcessedWithdrawalsProcessor
 
         LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawal.getWithdrawalId());
 
-        // Update status based on outcome
-        WithdrawalProcessingStatus status = message.getSuccessFailureIndicator() == SuccessFailureIndicator.SUCCESS
-                ? WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED
-                : WithdrawalProcessingStatus.WITHDRAWAL_REJECTED;
-        updateWithdrawalStatus(message, status);
-        LOG.info("Updated withdrawal status to " + status + " for withdrawalId=" + withdrawal.getWithdrawalId());
+        // Update status and carry failure reason through for failed outcomes.
+        UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
+        if (message.getSuccessFailureIndicator() == SuccessFailureIndicator.SUCCESS) {
+            request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
+        } else {
+            request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
+            request.setFailureReason(message.getErrorMessage());
+        }
+        updateWithdrawalStatus(message, request);
+        LOG.info("Updated withdrawal status to " + request.getProcessingStatus()
+                + " for withdrawalId=" + withdrawal.getWithdrawalId());
     }
 
     @Override

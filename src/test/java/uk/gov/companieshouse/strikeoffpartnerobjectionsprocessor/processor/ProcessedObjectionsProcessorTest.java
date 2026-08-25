@@ -4,21 +4,28 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
+import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.OBJECTION;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.WITHDRAWAL;
@@ -51,13 +58,20 @@ class ProcessedObjectionsProcessorTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
         stubSubmittedObjection(message);
         doNothing().when(processor).updateObjectionStatus(
-                message, ObjectionProcessingStatus.OBJECTION_ACCEPTED);
+                eq(message), any(UpdateObjectionStatusRequest.class));
 
         assertDoesNotThrow(() -> processor.process(message));
 
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+
         verify(processor).getObjectionDetails(message);
         verify(processor).updateObjectionStatus(
-                message, ObjectionProcessingStatus.OBJECTION_ACCEPTED);
+                eq(message), requestCaptor.capture());
+        assertEquals(ObjectionProcessingStatus.OBJECTION_ACCEPTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertNotNull(requestCaptor.getValue().getInitialExpirationOn());
+        assertNull(requestCaptor.getValue().getFailureReason());
     }
 
     @Test
@@ -65,13 +79,20 @@ class ProcessedObjectionsProcessorTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, FAILURE);
         stubSubmittedObjection(message);
         doNothing().when(processor).updateObjectionStatus(
-                message, ObjectionProcessingStatus.OBJECTION_REJECTED);
+                eq(message), any(UpdateObjectionStatusRequest.class));
 
         assertDoesNotThrow(() -> processor.process(message));
 
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+
         verify(processor).getObjectionDetails(message);
         verify(processor).updateObjectionStatus(
-                message, ObjectionProcessingStatus.OBJECTION_REJECTED);
+                eq(message), requestCaptor.capture());
+        assertEquals(ObjectionProcessingStatus.OBJECTION_REJECTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
+        assertNull(requestCaptor.getValue().getInitialExpirationOn());
     }
 
     @ParameterizedTest
@@ -90,9 +111,7 @@ class ProcessedObjectionsProcessorTest {
         assertTrue(exception.getMessage().contains(OBJECTION_ID));
         assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
         verify(processor, never()).updateObjectionStatus(
-                message, ObjectionProcessingStatus.OBJECTION_ACCEPTED);
-        verify(processor, never()).updateObjectionStatus(
-                message, ObjectionProcessingStatus.OBJECTION_REJECTED);
+                eq(message), any(UpdateObjectionStatusRequest.class));
     }
 
     private void stubSubmittedObjection(StrikeOffPartnerObjectionsProcessed message) {

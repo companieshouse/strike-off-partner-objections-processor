@@ -3,6 +3,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
+import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
@@ -46,13 +47,19 @@ public class ProcessedObjectionsProcessor
 
         LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
 
-        // Update status to accepted or rejected
+        // Update status and carry outcome fields through to the PATCH request.
         SuccessFailureIndicator successFailureIndicator = message.getSuccessFailureIndicator();
-        ObjectionProcessingStatus status = successFailureIndicator == SuccessFailureIndicator.SUCCESS ?
-                ObjectionProcessingStatus.OBJECTION_ACCEPTED :
-                ObjectionProcessingStatus.OBJECTION_REJECTED;
-        updateObjectionStatus(message, status);
-        LOG.info("Updated objection status to " + status + " for objectionId=" + objection.getObjectionId());
+        UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
+        if (successFailureIndicator == SuccessFailureIndicator.SUCCESS) {
+            request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_ACCEPTED);
+            request.setInitialExpirationOn(message.getInitialExpirationOn());
+        } else {
+            request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_REJECTED);
+            request.setFailureReason(message.getErrorMessage());
+        }
+        updateObjectionStatus(message, request);
+        LOG.info("Updated objection status to " + request.getProcessingStatus()
+                + " for objectionId=" + objection.getObjectionId());
     }
 
     @Override

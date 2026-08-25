@@ -4,14 +4,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
+import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doNothing;
@@ -19,6 +23,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.OBJECTION;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.WITHDRAWAL;
@@ -50,13 +56,18 @@ class ProcessedWithdrawalsProcessorTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
         stubProcessingWithdrawal(message);
         doNothing().when(processor).updateWithdrawalStatus(
-                message, WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
+                eq(message), any(UpdateWithdrawalStatusRequest.class));
 
         assertDoesNotThrow(() -> processor.process(message));
 
+        ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
+
         verify(processor).getWithdrawalDetails(message);
-        verify(processor).updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
-        verify(processor, never()).updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
+        verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
+        assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertNull(requestCaptor.getValue().getFailureReason());
     }
 
     @Test
@@ -64,13 +75,18 @@ class ProcessedWithdrawalsProcessorTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, FAILURE);
         stubProcessingWithdrawal(message);
         doNothing().when(processor).updateWithdrawalStatus(
-                message, WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
+                eq(message), any(UpdateWithdrawalStatusRequest.class));
 
         assertDoesNotThrow(() -> processor.process(message));
 
+        ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
+
         verify(processor).getWithdrawalDetails(message);
-        verify(processor).updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
-        verify(processor, never()).updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
+        verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
+        assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
     }
 
     @ParameterizedTest
@@ -88,8 +104,8 @@ class ProcessedWithdrawalsProcessorTest {
         assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
         assertTrue(exception.getMessage().contains(WITHDRAWAL_ID));
         assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
-        verify(processor, never()).updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
-        verify(processor, never()).updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
+        verify(processor, never()).updateWithdrawalStatus(
+                eq(message), any(UpdateWithdrawalStatusRequest.class));
     }
 
     private void stubProcessingWithdrawal(StrikeOffPartnerObjectionsProcessed message) {

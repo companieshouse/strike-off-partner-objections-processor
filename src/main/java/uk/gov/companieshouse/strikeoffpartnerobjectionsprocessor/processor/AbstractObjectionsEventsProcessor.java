@@ -43,15 +43,19 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
     }
 
     protected final void updateObjectionStatus(T message, ObjectionProcessingStatus status) {
+        UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
+        request.setProcessingStatus(status);
+        updateObjectionStatus(message, request);
+    }
+
+    protected final void updateObjectionStatus(T message, UpdateObjectionStatusRequest request) {
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
         try {
-            UpdateObjectionStatusRequest request = new UpdateObjectionStatusRequest();
-            request.setProcessingStatus(status);
             internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .updateObjectionStatus(uri, request)
                     .execute();
-            LOG.info("Successfully updated objection status to " + status
+            LOG.info("Successfully updated objection status to " + request.getProcessingStatus()
                     + " for eventId=" + getEventId(message));
         } catch (Exception exception) {
             LOG.info("Failed to update objection status using api url: " + uri);

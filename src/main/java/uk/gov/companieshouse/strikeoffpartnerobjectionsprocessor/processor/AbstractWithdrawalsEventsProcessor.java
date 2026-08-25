@@ -43,15 +43,19 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
     }
 
     protected final void updateWithdrawalStatus(T message, WithdrawalProcessingStatus status) {
+        UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
+        request.setProcessingStatus(status);
+        updateWithdrawalStatus(message, request);
+    }
+
+    protected final void updateWithdrawalStatus(T message, UpdateWithdrawalStatusRequest request) {
         String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
         try {
-            UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
-            request.setProcessingStatus(status);
             internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .updateWithdrawalStatus(uri, request)
                     .execute();
-            LOG.info("Successfully updated withdrawal status to " + status
+            LOG.info("Successfully updated withdrawal status to " + request.getProcessingStatus()
                     + " for eventId=" + getEventId(message));
         } catch (Exception exception) {
             LOG.info("Failed to update withdrawal status using api url: " + uri);
