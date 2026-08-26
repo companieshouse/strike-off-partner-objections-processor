@@ -2,9 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import uk.gov.companieshouse.api.InternalApiClient;
-import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
@@ -14,12 +12,10 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -58,17 +54,13 @@ class IncomingWithdrawalsProcessorTest {
                 WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
         doReturn(withdrawal).when(processor).getWithdrawalDetails(message);
         doNothing().when(processor).updateWithdrawalStatus(
-                eq(message), any(UpdateWithdrawalStatusRequest.class));
+                message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
 
         assertDoesNotThrow(() -> processor.process(message));
 
-        ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
-                ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
-
         verify(processor).getWithdrawalDetails(message);
-        verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
-        assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING,
-                requestCaptor.getValue().getProcessingStatus());
+        verify(processor).updateWithdrawalStatus(
+                message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
     }
 
     @Test
@@ -86,7 +78,7 @@ class IncomingWithdrawalsProcessorTest {
         assertTrue(exception.getMessage().contains(
                 WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING.getValue()));
         verify(processor, never()).updateWithdrawalStatus(
-                eq(message), any(UpdateWithdrawalStatusRequest.class));
+                message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
     }
 
     @Test
@@ -104,7 +96,7 @@ class IncomingWithdrawalsProcessorTest {
         assertTrue(exception.getMessage().contains("expected=WITHDRAWAL_REQUESTED"));
         assertTrue(exception.getMessage().contains(WITHDRAWAL_ID));
         verify(processor, never()).updateWithdrawalStatus(
-                eq(message), any(UpdateWithdrawalStatusRequest.class));
+                message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
     }
 
     @Test
@@ -114,7 +106,7 @@ class IncomingWithdrawalsProcessorTest {
                 WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
         doReturn(withdrawal).when(processor).getWithdrawalDetails(message);
         doNothing().when(processor).updateWithdrawalStatus(
-                eq(message), any(UpdateWithdrawalStatusRequest.class));
+                message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         doThrow(new ChipsSubmissionException("forbidden", 403))
                 .when(chipsPartnerObjectionsSubmissionClient)
                 .submit(any());
