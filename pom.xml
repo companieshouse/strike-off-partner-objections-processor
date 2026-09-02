@@ -12,7 +12,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <properties>
         <java.version>21</java.version>
-        <structured-logging.version>3.0.57</structured-logging.version>
+        <structured-logging.version>4.0.3</structured-logging.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -27,7 +27,7 @@
         <kafka-models.version>3.0.39</kafka-models.version>
         <api-sdk-manager-java-library.version>3.0.25</api-sdk-manager-java-library.version>
         <!-- Override vulnerable Tomcat version -->
-        <tomcat.version>11.0.24</tomcat.version>
+        <tomcat.version>11.0.25</tomcat.version>
         <private-api-sdk-java.version>7.2.20</private-api-sdk-java.version>
         <opentelemetry-semconv.version>1.42.0</opentelemetry-semconv.version>
 
@@ -89,6 +89,28 @@
                 <groupId>io.opentelemetry.semconv</groupId>
                 <artifactId>opentelemetry-semconv</artifactId>
                 <version>${opentelemetry-semconv.version}</version>
+            </dependency>
+            <!-- Override vulnerable jackson-databind pulled in by swagger-core -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.18.2</version>
+            </dependency>
+            <!-- Override vulnerable Spring Framework 7.0.8 -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-core</artifactId>
+                <version>7.0.9</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-web</artifactId>
+                <version>7.0.9</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-test</artifactId>
+                <version>7.0.9</version>
             </dependency>
 
         </dependencies>
