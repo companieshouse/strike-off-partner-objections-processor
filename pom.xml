@@ -100,17 +100,17 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-core</artifactId>
-                <version>7.0.15</version>
+                <version>7.0.9</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-web</artifactId>
-                <version>7.0.15</version>
+                <version>7.0.9</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-test</artifactId>
-                <version>7.0.15</version>
+                <version>7.0.9</version>
             </dependency>
 
         </dependencies>
