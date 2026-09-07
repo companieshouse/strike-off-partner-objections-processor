@@ -25,10 +25,10 @@ public class ChipsPartnerObjectionsSubmissionClient {
     public void submit(StrikeOffPartnerObjections message) {
         String endpoint = buildEndpointUrl();
         ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(message);
-        ResponseEntity<Void> response;
+        ResponseEntity<String> response;
 
         try {
-            response = restTemplate.postForEntity(endpoint, request, Void.class);
+            response = restTemplate.postForEntity(endpoint, request, String.class);
         } catch (HttpStatusCodeException exception) {
             throw new ChipsSubmissionException("CHIPS submission failed", exception.getStatusCode().value(), exception);
         } catch (RestClientException exception) {
