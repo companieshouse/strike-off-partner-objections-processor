@@ -1,5 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
+import jakarta.annotation.Nullable;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
@@ -11,7 +12,7 @@ public record ChipsPartnerObjectionsSubmissionRequest(
         String partner_case_reference,
         String partner_objection_workstream,
         String partner_contact_email,
-        String partner_objection_reason,
+        @Nullable String partner_objection_reason,
         String strike_off_event_id
 ) {
     static ChipsPartnerObjectionsSubmissionRequest from(BaseObjectionResponse response, StrikeOffPartnerObjections message) {
@@ -35,7 +36,7 @@ public record ChipsPartnerObjectionsSubmissionRequest(
                 response.getPartnerCaseReference(),
                 response.getPartnerObjectionWorkstream(),
                 response.getPartnerContactEmail(),
-                response.getFailureReason().toString(),
+                null,
                 response.getWithdrawalId()
         );
     }

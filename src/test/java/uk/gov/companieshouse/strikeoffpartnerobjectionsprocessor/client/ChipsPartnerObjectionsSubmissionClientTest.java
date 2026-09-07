@@ -8,6 +8,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
+import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
+import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
+import uk.gov.companieshouse.api.objections.model.PartnerObjectionReason;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 
@@ -28,6 +33,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class ChipsPartnerObjectionsSubmissionClientTest {
     private static final String BASE_URL = "http://chips-rest-interfaces";
     private static final String ENDPOINT_URL = BASE_URL + "/chipsgeneric/strike-off-partner-objections";
+    private static final String OBJECTION_ID = "obj-001";
+    private static final String WITHDRAWAL_ID = "wd-001";
 
     private MockRestServiceServer server;
     private ChipsPartnerObjectionsSubmissionClient client;
@@ -44,13 +51,16 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.eventId").value("evt-100"))
-                .andExpect(jsonPath("$.eventType").value("OBJECTION"))
-                .andExpect(jsonPath("$.companyNumber").value("12345678"))
-                .andExpect(jsonPath("$.partnerOrganisation").value("TEST_ORG"))
+                .andExpect(jsonPath("$.company_number").value("12345678"))
+                .andExpect(jsonPath("$.submission_company_name").value("TEST_ORG"))
+                .andExpect(jsonPath("$.source").value("HMRC"))
+                .andExpect(jsonPath("$.partner_case_reference").value("OBJECTION"))
+                .andExpect(jsonPath("$.partner_contact_email").value("12345678"))
+                .andExpect(jsonPath("$.partner_objection_reason").value("other"))
+                .andExpect(jsonPath("$.strike_off_event_id").value("obj-001"))
                 .andRespond(withStatus(HttpStatus.ACCEPTED));
 
-        assertDoesNotThrow(() -> client.submit(buildMessage(EventType.OBJECTION)));
+        assertDoesNotThrow(() -> client.submitForObjections(createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED), buildMessage(EventType.OBJECTION)));
         server.verify();
     }
 
@@ -60,10 +70,11 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withStatus(HttpStatus.FORBIDDEN));
         StrikeOffPartnerObjections message = buildMessage(EventType.WITHDRAWAL);
+        WithdrawAllObjectionsResponse baseResponse = new WithdrawAllObjectionsResponse();
 
         ChipsSubmissionException exception = assertThrows(
                 ChipsSubmissionException.class,
-                () -> client.submit(message));
+                () -> client.submitForWithdrawals(baseResponse, message));
 
         assertEquals(403, exception.getStatusCode());
     }
@@ -77,7 +88,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
 
         ChipsSubmissionException exception = assertThrows(
                 ChipsSubmissionException.class,
-                () -> client.submit(message));
+                () -> client.submitForWithdrawals(createWithdrawalResponse(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED), message));
 
         assertEquals(200, exception.getStatusCode());
     }
@@ -87,7 +98,6 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         RestTemplate restTemplate = mock(RestTemplate.class);
         ChipsPartnerObjectionsSubmissionClient submissionClient =
                 new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL);
-        StrikeOffPartnerObjections message = buildMessage(EventType.OBJECTION);
 
         when(restTemplate.postForEntity(
                 eq(ENDPOINT_URL),
@@ -95,7 +105,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 eq(String.class)))
                 .thenReturn(ResponseEntity.accepted().build());
 
-        assertDoesNotThrow(() -> submissionClient.submit(message));
+        assertDoesNotThrow(() -> submissionClient.submitForObjections(createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED), buildMessage(EventType.OBJECTION)));
 
         verify(restTemplate).postForEntity(
                 eq(ENDPOINT_URL),
@@ -107,11 +117,33 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         return StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-100")
                 .setEventTime("2026-08-24T00:00:00Z")
-                .setSource("test")
+                .setSource("HMRC")
                 .setEventType(eventType)
                 .setCompanyNumber("12345678")
-                .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-100")
                 .build();
+    }
+
+    private static BaseObjectionResponse createObjectionResponse(
+            ObjectionProcessingStatus processingStatus) {
+        return new BaseObjectionResponse()
+                .companyNumber("12345678")
+                .submissionCompanyName("TEST_ORG")
+                .objectionId(OBJECTION_ID)
+                .partnerCaseReference("OBJECTION")
+                .partnerObjectionReason(PartnerObjectionReason.OTHER)
+                .partnerContactEmail("12345678")
+                .processingStatus(processingStatus);
+    }
+
+    private static WithdrawAllObjectionsResponse createWithdrawalResponse(
+            WithdrawalProcessingStatus processingStatus) {
+        return new WithdrawAllObjectionsResponse()
+                .companyNumber("12345678")
+                .submissionCompanyName("TEST_ORG")
+                .withdrawalId(WITHDRAWAL_ID)
+                .partnerCaseReference("WITHDRAWAL")
+                .partnerContactEmail("12345678")
+                .processingStatus(processingStatus);
     }
 }
