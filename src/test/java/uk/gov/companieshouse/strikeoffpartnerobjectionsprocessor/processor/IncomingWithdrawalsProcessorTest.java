@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -109,14 +110,14 @@ class IncomingWithdrawalsProcessorTest {
                 message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         doThrow(new ChipsSubmissionException("forbidden", 403))
                 .when(chipsPartnerObjectionsSubmissionClient)
-                .submit(any());
+                .submitForWithdrawals(any(), any());
 
         InvalidStrikeOffMessageException exception = assertThrows(
                 InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
 
         assertTrue(exception.getMessage().contains("Non-retryable API error (status=403)"));
-        verify(chipsPartnerObjectionsSubmissionClient).submit(message);
+        verify(chipsPartnerObjectionsSubmissionClient).submitForWithdrawals(any(), eq(message));
     }
 
     private static WithdrawAllObjectionsResponse withdrawalWithStatus(
