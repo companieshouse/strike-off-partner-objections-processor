@@ -37,10 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.integration.IntegrationTestFixtures.COMPANY_NUMBER;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.integration.IntegrationTestFixtures.PROCESSED_TOPIC;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.integration.IntegrationTestFixtures.STRIKE_OFF_EVENT_ID;
@@ -89,7 +86,7 @@ class ProcessedKafkaIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        handler = org.mockito.Mockito.mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        handler = mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
         when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
     }
 
@@ -98,7 +95,7 @@ class ProcessedKafkaIntegrationTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(
                 ProcessedEventType.OBJECTION, SuccessFailureIndicator.SUCCESS);
         stubGetObjection(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        UpdateObjectionStatus updateObjectionStatus = org.mockito.Mockito.mock(UpdateObjectionStatus.class);
+        UpdateObjectionStatus updateObjectionStatus = mock(UpdateObjectionStatus.class);
         when(handler.updateObjectionStatus(eq(OBJECTION_STATUS_URI), any(UpdateObjectionStatusRequest.class)))
                 .thenReturn(updateObjectionStatus);
         when(updateObjectionStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
@@ -114,7 +111,7 @@ class ProcessedKafkaIntegrationTest {
         assertEquals(ObjectionProcessingStatus.OBJECTION_ACCEPTED, requestCaptor.getValue().getProcessingStatus());
         assertNotNull(requestCaptor.getValue().getInitialExpirationOn());
         assertNull(requestCaptor.getValue().getFailureReason());
-        verify(chipsSubmissionClient, never()).submit(any());
+        verify(chipsSubmissionClient, never()).submitForObjections(any(), any());
     }
 
     @Test
@@ -122,7 +119,7 @@ class ProcessedKafkaIntegrationTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(
                 ProcessedEventType.WITHDRAWAL, SuccessFailureIndicator.FAILURE);
         stubGetWithdrawal(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
-        UpdateWithdrawalStatus updateWithdrawalStatus = org.mockito.Mockito.mock(UpdateWithdrawalStatus.class);
+        UpdateWithdrawalStatus updateWithdrawalStatus = mock(UpdateWithdrawalStatus.class);
         when(handler.updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), any(UpdateWithdrawalStatusRequest.class)))
                 .thenReturn(updateWithdrawalStatus);
         when(updateWithdrawalStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
@@ -137,11 +134,11 @@ class ProcessedKafkaIntegrationTest {
                 .updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), requestCaptor.capture());
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED, requestCaptor.getValue().getProcessingStatus());
         assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
-        verify(chipsSubmissionClient, never()).submit(any());
+        verify(chipsSubmissionClient, never()).submitForWithdrawals(any(), any());
     }
 
     private void stubGetObjection(ObjectionProcessingStatus status) throws Exception {
-        GetObjection getObjection = org.mockito.Mockito.mock(GetObjection.class);
+        GetObjection getObjection = mock(GetObjection.class);
         BaseObjectionResponse objection = new BaseObjectionResponse()
                 .objectionId("obj-001")
                 .processingStatus(status);
@@ -150,7 +147,7 @@ class ProcessedKafkaIntegrationTest {
     }
 
     private void stubGetWithdrawal(WithdrawalProcessingStatus status) throws Exception {
-        GetAllWithdrawals getAllWithdrawals = org.mockito.Mockito.mock(GetAllWithdrawals.class);
+        GetAllWithdrawals getAllWithdrawals = mock(GetAllWithdrawals.class);
         WithdrawAllObjectionsResponse withdrawal = new WithdrawAllObjectionsResponse()
                 .withdrawalId("wd-001")
                 .processingStatus(status);
