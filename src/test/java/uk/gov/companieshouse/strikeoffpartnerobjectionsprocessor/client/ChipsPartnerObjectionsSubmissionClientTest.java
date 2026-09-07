@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
@@ -13,6 +14,11 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -74,6 +80,27 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 () -> client.submit(message));
 
         assertEquals(200, exception.getStatusCode());
+    }
+
+    @Test
+    void submit_usesStringResponseTypeForChipsCall() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        ChipsPartnerObjectionsSubmissionClient submissionClient =
+                new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL);
+        StrikeOffPartnerObjections message = buildMessage(EventType.OBJECTION);
+
+        when(restTemplate.postForEntity(
+                eq(ENDPOINT_URL),
+                any(ChipsPartnerObjectionsSubmissionRequest.class),
+                eq(String.class)))
+                .thenReturn(ResponseEntity.accepted().build());
+
+        assertDoesNotThrow(() -> submissionClient.submit(message));
+
+        verify(restTemplate).postForEntity(
+                eq(ENDPOINT_URL),
+                any(ChipsPartnerObjectionsSubmissionRequest.class),
+                eq(String.class));
     }
 
     private StrikeOffPartnerObjections buildMessage(EventType eventType) {
