@@ -38,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -90,7 +91,7 @@ class IncomingKafkaIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        handler = org.mockito.Mockito.mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
+        handler = mock(PrivateStrikeOffPartnerObjectionsResourceHandler.class);
         when(internalApiClient.privateStrikeOffPartnerObjectionsResourceHandler()).thenReturn(handler);
     }
 
@@ -98,7 +99,7 @@ class IncomingKafkaIntegrationTest {
     void incomingObjectionEvent_fromKafka_updatesStatusAndSubmitsToChips() throws Exception {
         StrikeOffPartnerObjections message = incomingMessage(EventType.OBJECTION);
         stubGetObjection(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        UpdateObjectionStatus updateObjectionStatus = org.mockito.Mockito.mock(UpdateObjectionStatus.class);
+        UpdateObjectionStatus updateObjectionStatus = mock(UpdateObjectionStatus.class);
         when(handler.updateObjectionStatus(eq(OBJECTION_STATUS_URI), any(UpdateObjectionStatusRequest.class)))
                 .thenReturn(updateObjectionStatus);
         when(updateObjectionStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
@@ -108,10 +109,13 @@ class IncomingKafkaIntegrationTest {
 
         ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
                 ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+        ArgumentCaptor<BaseObjectionResponse> responseCaptor =
+                ArgumentCaptor.forClass(BaseObjectionResponse.class);
         verify(handler, timeout(5000)).getObjection(OBJECTION_URI);
         verify(handler, timeout(5000))
                 .updateObjectionStatus(eq(OBJECTION_STATUS_URI), requestCaptor.capture());
-        verify(chipsSubmissionClient, timeout(5000)).submit(message);
+        verify(chipsSubmissionClient, timeout(5000))
+                .submitForObjections(responseCaptor.capture(), eq(message));
         assertEquals(ObjectionProcessingStatus.OBJECTION_PROCESSING, requestCaptor.getValue().getProcessingStatus());
     }
 
@@ -119,7 +123,7 @@ class IncomingKafkaIntegrationTest {
     void incomingWithdrawalEvent_fromKafka_updatesStatusAndSubmitsToChips() throws Exception {
         StrikeOffPartnerObjections message = incomingMessage(EventType.WITHDRAWAL);
         stubGetWithdrawal(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
-        UpdateWithdrawalStatus updateWithdrawalStatus = org.mockito.Mockito.mock(UpdateWithdrawalStatus.class);
+        UpdateWithdrawalStatus updateWithdrawalStatus = mock(UpdateWithdrawalStatus.class);
         when(handler.updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), any(UpdateWithdrawalStatusRequest.class)))
                 .thenReturn(updateWithdrawalStatus);
         when(updateWithdrawalStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
@@ -132,7 +136,7 @@ class IncomingKafkaIntegrationTest {
         verify(handler, timeout(5000)).getAllWithdrawals(WITHDRAWAL_URI);
         verify(handler, timeout(5000))
                 .updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), requestCaptor.capture());
-        verify(chipsSubmissionClient, timeout(5000)).submit(message);
+        verify(chipsSubmissionClient, timeout(5000)).submitForWithdrawals(any(), eq(message));
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING, requestCaptor.getValue().getProcessingStatus());
     }
 
@@ -146,19 +150,19 @@ class IncomingKafkaIntegrationTest {
 
         verify(handler).getObjection(OBJECTION_URI);
         verify(handler, never()).updateObjectionStatus(eq(OBJECTION_STATUS_URI), any(UpdateObjectionStatusRequest.class));
-        verify(chipsSubmissionClient, never()).submit(any());
+        verify(chipsSubmissionClient, never()).submitForObjections(any(), eq(message));
     }
 
     @Test
     void chips503_isClassifiedAsRetryable() throws Exception {
         StrikeOffPartnerObjections message = incomingMessage(EventType.OBJECTION);
         stubGetObjection(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        UpdateObjectionStatus updateObjectionStatus = org.mockito.Mockito.mock(UpdateObjectionStatus.class);
+        UpdateObjectionStatus updateObjectionStatus = mock(UpdateObjectionStatus.class);
         when(handler.updateObjectionStatus(eq(OBJECTION_STATUS_URI), any(UpdateObjectionStatusRequest.class)))
                 .thenReturn(updateObjectionStatus);
         when(updateObjectionStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
         doThrow(new ChipsSubmissionException("service unavailable", 503))
-                .when(chipsSubmissionClient).submit(message);
+                .when(chipsSubmissionClient).submitForObjections(any(), eq(message));
         ConsumerRecord<String, StrikeOffPartnerObjections> kafkaRecord =
                 new ConsumerRecord<>(INCOMING_TOPIC, 0, 0L, message.getEventId(), message);
 
@@ -173,12 +177,12 @@ class IncomingKafkaIntegrationTest {
     void chips403_isClassifiedAsNonRetryable() throws Exception {
         StrikeOffPartnerObjections message = incomingMessage(EventType.WITHDRAWAL);
         stubGetWithdrawal(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
-        UpdateWithdrawalStatus updateWithdrawalStatus = org.mockito.Mockito.mock(UpdateWithdrawalStatus.class);
+        UpdateWithdrawalStatus updateWithdrawalStatus = mock(UpdateWithdrawalStatus.class);
         when(handler.updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), any(UpdateWithdrawalStatusRequest.class)))
                 .thenReturn(updateWithdrawalStatus);
         when(updateWithdrawalStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
         doThrow(new ChipsSubmissionException("forbidden", 403))
-                .when(chipsSubmissionClient).submit(message);
+                .when(chipsSubmissionClient).submitForWithdrawals(any(), eq(message));
         ConsumerRecord<String, StrikeOffPartnerObjections> kafkaRecord =
                 new ConsumerRecord<>(INCOMING_TOPIC, 0, 0L, message.getEventId(), message);
 
@@ -190,7 +194,7 @@ class IncomingKafkaIntegrationTest {
     }
 
     private void stubGetObjection(ObjectionProcessingStatus status) throws Exception {
-        GetObjection getObjection = org.mockito.Mockito.mock(GetObjection.class);
+        GetObjection getObjection = mock(GetObjection.class);
         BaseObjectionResponse objection = new BaseObjectionResponse()
                 .objectionId("obj-001")
                 .processingStatus(status);
@@ -199,7 +203,7 @@ class IncomingKafkaIntegrationTest {
     }
 
     private void stubGetWithdrawal(WithdrawalProcessingStatus status) throws Exception {
-        GetAllWithdrawals getAllWithdrawals = org.mockito.Mockito.mock(GetAllWithdrawals.class);
+        GetAllWithdrawals getAllWithdrawals = mock(GetAllWithdrawals.class);
         WithdrawAllObjectionsResponse withdrawal = new WithdrawAllObjectionsResponse()
                 .withdrawalId("wd-001")
                 .processingStatus(status);
