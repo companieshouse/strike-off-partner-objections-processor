@@ -15,7 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.OBJECTION;
 import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.WITHDRAWAL;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.OBJECTION_ID;
@@ -84,14 +91,14 @@ class IncomingObjectionsProcessorTest {
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         doThrow(new ChipsSubmissionException("bad request", 400))
                 .when(chipsPartnerObjectionsSubmissionClient)
-                .submit(message);
+                .submitForObjections(objection, message);
 
         InvalidStrikeOffMessageException exception = assertThrows(
                 InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
 
         assertTrue(exception.getMessage().contains("Non-retryable API error (status=400)"));
-        verify(chipsPartnerObjectionsSubmissionClient).submit(message);
+        verify(chipsPartnerObjectionsSubmissionClient).submitForObjections(objection, message);
     }
 
     @Test
@@ -103,7 +110,7 @@ class IncomingObjectionsProcessorTest {
 
         assertThrows(DuplicateRecordException.class, () -> processor.process(message));
 
-        verify(chipsPartnerObjectionsSubmissionClient, never()).submit(any());
+        verify(chipsPartnerObjectionsSubmissionClient, never()).submitForObjections(any(), any());
     }
 
     private static BaseObjectionResponse objectionWithStatus(
