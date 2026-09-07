@@ -1,25 +1,42 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
+import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 
 public record ChipsPartnerObjectionsSubmissionRequest(
-        String eventId,
-        String eventTime,
+        String company_number,
+        String submission_company_name,
         String source,
-        String eventType,
-        String companyNumber,
-        String partnerOrganisation,
-        String strikeOffEventId
+        String partner_case_reference,
+        String partner_objection_workstream,
+        String partner_contact_email,
+        String partner_objection_reason,
+        String strike_off_event_id
 ) {
-    static ChipsPartnerObjectionsSubmissionRequest from(StrikeOffPartnerObjections message) {
+    static ChipsPartnerObjectionsSubmissionRequest from(BaseObjectionResponse response, StrikeOffPartnerObjections message) {
         return new ChipsPartnerObjectionsSubmissionRequest(
-                message.getEventId(),
-                message.getEventTime(),
+                response.getCompanyNumber(),
+                response.getSubmissionCompanyName(),
                 message.getSource(),
-                message.getEventType() == null ? null : message.getEventType().name(),
-                message.getCompanyNumber(),
-                message.getPartnerOrganisation(),
-                message.getStrikeOffEventId()
+                response.getPartnerCaseReference(),
+                response.getPartnerObjectionWorkstream(),
+                response.getPartnerContactEmail(),
+                response.getPartnerObjectionReason().toString(),
+                response.getObjectionId()
+        );
+    }
+
+    static ChipsPartnerObjectionsSubmissionRequest from(WithdrawAllObjectionsResponse response, StrikeOffPartnerObjections message) {
+        return new ChipsPartnerObjectionsSubmissionRequest(
+                response.getCompanyNumber(),
+                response.getSubmissionCompanyName(),
+                message.getSource(),
+                response.getPartnerCaseReference(),
+                response.getPartnerObjectionWorkstream(),
+                response.getPartnerContactEmail(),
+                response.getFailureReason().toString(),
+                response.getWithdrawalId()
         );
     }
 }

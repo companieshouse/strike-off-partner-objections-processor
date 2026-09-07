@@ -65,7 +65,7 @@ public class IncomingWithdrawalsProcessor
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
-        submitToChips(message, chipsPartnerObjectionsSubmissionClient, "withdrawal");
+        submitToChips(withdrawalDetails, message, chipsPartnerObjectionsSubmissionClient);
     }
 
     @Override

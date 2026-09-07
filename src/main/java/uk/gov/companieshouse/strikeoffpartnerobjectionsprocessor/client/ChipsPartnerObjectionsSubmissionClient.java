@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants;
 
@@ -22,9 +24,19 @@ public class ChipsPartnerObjectionsSubmissionClient {
         this.chipsRestInterfaceBaseUrl = chipsRestInterfaceBaseUrl;
     }
 
-    public void submit(StrikeOffPartnerObjections message) {
+    public void submitForObjections(BaseObjectionResponse baseResponse, StrikeOffPartnerObjections message) {
         String endpoint = buildEndpointUrl();
-        ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(message);
+        ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
+        submit(endpoint, request);
+    }
+
+    public void submitForWithdrawals(WithdrawAllObjectionsResponse baseResponse, StrikeOffPartnerObjections message) {
+        String endpoint = buildEndpointUrl();
+        ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
+        submit(endpoint, request);
+    }
+
+    public void submit(String endpoint, ChipsPartnerObjectionsSubmissionRequest request) {
         ResponseEntity<String> response;
 
         try {
