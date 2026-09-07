@@ -85,10 +85,12 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withStatus(HttpStatus.OK));
         StrikeOffPartnerObjections message = buildMessage(EventType.OBJECTION);
+        WithdrawAllObjectionsResponse withdrawalResponse =
+                createWithdrawalResponse(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
 
         ChipsSubmissionException exception = assertThrows(
                 ChipsSubmissionException.class,
-                () -> client.submitForWithdrawals(createWithdrawalResponse(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED), message));
+                () -> client.submitForWithdrawals(withdrawalResponse, message));
 
         assertEquals(200, exception.getStatusCode());
     }
