@@ -25,18 +25,17 @@ public class ChipsPartnerObjectionsSubmissionClient {
     }
 
     public void submitForObjections(BaseObjectionResponse baseResponse, StrikeOffPartnerObjections message) {
-        String endpoint = buildEndpointUrl();
         ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
-        submit(endpoint, request);
+        submit(request);
     }
 
     public void submitForWithdrawals(WithdrawAllObjectionsResponse baseResponse, StrikeOffPartnerObjections message) {
-        String endpoint = buildEndpointUrl();
         ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
-        submit(endpoint, request);
+        submit(request);
     }
 
-    public void submit(String endpoint, ChipsPartnerObjectionsSubmissionRequest request) {
+    public void submit(ChipsPartnerObjectionsSubmissionRequest request) {
+        String endpoint = buildEndpointUrl();
         ResponseEntity<String> response;
 
         try {
