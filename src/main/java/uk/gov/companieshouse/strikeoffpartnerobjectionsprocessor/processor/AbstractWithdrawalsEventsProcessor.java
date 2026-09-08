@@ -5,6 +5,8 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
+import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 
 import java.util.function.Function;
 
@@ -59,6 +61,20 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
                     + " for eventId=" + getEventId(message));
         } catch (Exception exception) {
             LOG.info("Failed to update withdrawal status using api url: " + uri);
+            throw mapApiException(message, exception);
+        }
+    }
+
+    protected final void submitToChips(
+            WithdrawAllObjectionsResponse response,
+            T message,
+            ChipsPartnerObjectionsSubmissionClient submissionClient) {
+        try {
+            StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
+            submissionClient.submitForWithdrawals(response, objectionMessage);
+            LOG.info("Submitted " + objectionMessage.getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
+        } catch (Exception exception) {
+            LOG.info("Failed to submit " + ((StrikeOffPartnerObjections) message).getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
             throw mapApiException(message, exception);
         }
     }

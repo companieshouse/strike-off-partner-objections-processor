@@ -55,7 +55,7 @@ public class IncomingObjectionsProcessor
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
-        submitToChips(message, chipsPartnerObjectionsSubmissionClient, "objection");
+        submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient);
     }
 
     @Override

@@ -5,6 +5,8 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
+import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 
 import java.util.function.Function;
 
@@ -62,4 +64,19 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
             throw mapApiException(message, exception);
         }
     }
+
+    protected final void submitToChips(
+            BaseObjectionResponse response,
+            T message,
+            ChipsPartnerObjectionsSubmissionClient submissionClient) {
+        try {
+            StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
+            submissionClient.submitForObjections(response, objectionMessage);
+            LOG.info("Submitted " + objectionMessage.getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
+        } catch (Exception exception) {
+            LOG.info("Failed to submit " + ((StrikeOffPartnerObjections) message).getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
+            throw mapApiException(message, exception);
+        }
+    }
+
 }

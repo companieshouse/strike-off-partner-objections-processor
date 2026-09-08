@@ -8,7 +8,6 @@ import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
@@ -70,19 +69,6 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
     protected final String getEventId(T message) {
         return eventIdGetter.apply(message);
-    }
-
-    protected final void submitToChips(
-            StrikeOffPartnerObjections message,
-            ChipsPartnerObjectionsSubmissionClient submissionClient,
-            String eventLabel) {
-        try {
-            submissionClient.submit(message);
-            LOG.info("Submitted " + eventLabel + " to CHIPS endpoint for eventId=" + message.getEventId());
-        } catch (Exception exception) {
-            LOG.info("Failed to submit " + eventLabel + " to CHIPS endpoint for eventId=" + message.getEventId());
-            throw mapApiException(message.getEventId(), exception);
-        }
     }
 
     protected final void validateIncomingEvent(StrikeOffPartnerObjections message) {
