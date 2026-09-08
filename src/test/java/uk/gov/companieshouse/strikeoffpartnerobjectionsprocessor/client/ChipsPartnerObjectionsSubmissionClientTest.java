@@ -119,7 +119,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         return StrikeOffPartnerObjections.newBuilder()
                 .setEventId("evt-100")
                 .setEventTime("2026-08-24T00:00:00Z")
-                .setSource("HMRC")
+                .setPartnerOrganisation("HMRC")
                 .setEventType(eventType)
                 .setCompanyNumber("12345678")
                 .setStrikeOffEventId("strike-100")

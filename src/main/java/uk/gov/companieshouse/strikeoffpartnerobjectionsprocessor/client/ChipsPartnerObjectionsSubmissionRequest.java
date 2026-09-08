@@ -19,7 +19,7 @@ public record ChipsPartnerObjectionsSubmissionRequest(
         return new ChipsPartnerObjectionsSubmissionRequest(
                 response.getCompanyNumber(),
                 response.getSubmissionCompanyName(),
-                message.getSource(),
+                message.getPartnerOrganisation(),
                 response.getPartnerCaseReference(),
                 response.getPartnerObjectionWorkstream(),
                 response.getPartnerContactEmail(),
@@ -32,7 +32,7 @@ public record ChipsPartnerObjectionsSubmissionRequest(
         return new ChipsPartnerObjectionsSubmissionRequest(
                 response.getCompanyNumber(),
                 response.getSubmissionCompanyName(),
-                message.getSource(),
+                message.getPartnerOrganisation(),
                 response.getPartnerCaseReference(),
                 response.getPartnerObjectionWorkstream(),
                 response.getPartnerContactEmail(),
