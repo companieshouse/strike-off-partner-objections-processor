@@ -29,7 +29,11 @@ public class DateLogicalTypeDeserializer implements Deserializer<StrikeOffPartne
     public final Class<?> avroClass;
 
     public DateLogicalTypeDeserializer() {
-        this.delegate = new AvroDeserializer<>(StrikeOffPartnerObjectionsProcessed.class);
+        this(new AvroDeserializer<>(StrikeOffPartnerObjectionsProcessed.class));
+    }
+
+    DateLogicalTypeDeserializer(AvroDeserializer<StrikeOffPartnerObjectionsProcessed> delegate) {
+        this.delegate = delegate;
         this.avroClass = StrikeOffPartnerObjectionsProcessed.class;
     }
 
