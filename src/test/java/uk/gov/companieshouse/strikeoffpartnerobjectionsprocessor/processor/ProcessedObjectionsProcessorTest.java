@@ -11,21 +11,23 @@ import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.OBJECTION;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.WITHDRAWAL;
@@ -110,6 +112,21 @@ class ProcessedObjectionsProcessorTest {
         assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
         assertTrue(exception.getMessage().contains(OBJECTION_ID));
         assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
+        verify(processor, never()).updateObjectionStatus(
+                eq(message), any(UpdateObjectionStatusRequest.class));
+    }
+
+    @Test
+    void process_objectionNotFound_throwsDuplicateWithoutUpdatingStatus() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
+        doThrow(new InvalidStrikeOffMessageException(
+                "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID))
+                .when(processor).getObjectionDetails(message);
+
+        DuplicateRecordException exception =
+                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
+
+        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
         verify(processor, never()).updateObjectionStatus(
                 eq(message), any(UpdateObjectionStatusRequest.class));
     }

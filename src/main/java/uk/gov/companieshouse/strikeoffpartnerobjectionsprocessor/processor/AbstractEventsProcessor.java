@@ -26,6 +26,8 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  */
 public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
+    private static final int TOO_MANY_REQUESTS_STATUS = 429;
+
     protected static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
 
     protected final InternalApiClient internalApiClient;
@@ -140,11 +142,12 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
     }
 
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
-        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
-        if (status >= 400 && status < 500 && status != 429) {
+        if (status >= 400 && status < 500 && status != TOO_MANY_REQUESTS_STATUS) {
+            LOG.info("Non-retryable API call outcome: status=" + status + ", eventId=" + eventId);
             return new InvalidStrikeOffMessageException(
                     "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
         }
+        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
         return new RuntimeException(
                 "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
     }

@@ -19,36 +19,42 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.DateLogicalTypeDeserializer;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Kafka configuration for consuming and producing strike-off partner objections messages.
+ * Configures separate consumer and producer factories for both incoming objections and
+ * processed objections events, with appropriate error handling and date deserialization support.
+ */
 @Configuration
 public class KafkaConsumerConfig {
-    @Value("${spring.kafka.bootstrap-servers}")
+
+    @Value("${kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${kafka.strikeoff.objections.group-id:default-group}")
+    @Value("${kafka.consumer.group-id}")
     private String groupId;
 
-    @Value("${kafka.strikeoff.processed-objections.group-id:default-processed-group}")
+    @Value("${kafka.consumer.processed-group-id}")
     private String processedGroupId;
 
-    @Value("${kafka.session.timeout:10000}")
-    private int sessionTimeout;
+    @Value("${kafka.consumer.session-timeout-ms}")
+    private Integer sessionTimeout;
 
-    @Value("${kafka.max.poll.interval:300000}")
-    private int maxPollInterval;
+    @Value("${kafka.consumer.max-poll-interval-ms}")
+    private Integer maxPollInterval;
 
-    @Value("${kafka.heartbeat.interval:3000}")
-    private int heartbeatInterval;
+    @Value("${kafka.consumer.heartbeat-interval-ms}")
+    private Integer heartbeatInterval;
 
-    @Value("${kafka.max.poll.records:500}")
-    private int maxPollRecords;
-
+    @Value("${kafka.consumer.max-poll-records}")
+    private Integer maxPollRecords;
 
     // =========================================================================
-    // 1. Consumer Factory Configuration
+    // 1. Consumer Factories
     // =========================================================================
     @Bean
     public ConsumerFactory<String, StrikeOffPartnerObjections> consumerFactory() {
@@ -57,7 +63,7 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> processedConsumerFactory() {
-        return createConsumerFactory(StrikeOffPartnerObjectionsProcessed.class, processedGroupId);
+        return createProcessedConsumerFactory();
     }
 
     private <T> ConsumerFactory<String, T> createConsumerFactory(Class<T> eventClass, String consumerGroupId) {
@@ -79,6 +85,27 @@ public class KafkaConsumerConfig {
         return new DefaultKafkaConsumerFactory<>(props,
                 new ErrorHandlingDeserializer<>(new StringDeserializer()),
                 new ErrorHandlingDeserializer<>(new AvroDeserializer<>(eventClass)));
+    }
+
+    private ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> createProcessedConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, processedGroupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, DateLogicalTypeDeserializer.class);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeout);
+        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, heartbeatInterval);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
+        return new DefaultKafkaConsumerFactory<>(props,
+                new ErrorHandlingDeserializer<>(new StringDeserializer()),
+                new ErrorHandlingDeserializer<>(new DateLogicalTypeDeserializer()));
     }
 
     // =========================================================================
@@ -145,3 +172,4 @@ public class KafkaConsumerConfig {
         return new KafkaTemplate<>(producerFactory);
     }
 }
+

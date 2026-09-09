@@ -11,6 +11,7 @@ import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -104,6 +106,21 @@ class ProcessedWithdrawalsProcessorTest {
         assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
         assertTrue(exception.getMessage().contains(WITHDRAWAL_ID));
         assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
+        verify(processor, never()).updateWithdrawalStatus(
+                eq(message), any(UpdateWithdrawalStatusRequest.class));
+    }
+
+    @Test
+    void process_withdrawalNotFound_throwsDuplicateWithoutUpdatingStatus() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
+        doThrow(new InvalidStrikeOffMessageException(
+                "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID))
+                .when(processor).getWithdrawalDetails(message);
+
+        DuplicateRecordException exception =
+                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
+
+        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
         verify(processor, never()).updateWithdrawalStatus(
                 eq(message), any(UpdateWithdrawalStatusRequest.class));
     }

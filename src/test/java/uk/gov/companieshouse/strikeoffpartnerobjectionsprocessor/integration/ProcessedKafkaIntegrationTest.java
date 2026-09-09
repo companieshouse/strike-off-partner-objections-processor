@@ -50,6 +50,13 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.integrat
 @Tag("integration-test")
 @SpringBootTest(properties = {
         "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+        "kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+        "kafka.consumer.group-id=integration-incoming-group-processed-tests",
+        "kafka.consumer.processed-group-id=integration-processed-group-tests",
+        "kafka.consumer.session-timeout-ms=60000",
+        "kafka.consumer.max-poll-interval-ms=350000",
+        "kafka.consumer.heartbeat-interval-ms=10000",
+        "kafka.consumer.max-poll-records=1",
         "kafka.topic.strikeoff.objections=strike-off-partner-objections-incoming",
         "kafka.topic.strikeoff.processed-objections=" + PROCESSED_TOPIC,
         "kafka.strikeoff.objections.group-id=integration-incoming-group-processed-tests",

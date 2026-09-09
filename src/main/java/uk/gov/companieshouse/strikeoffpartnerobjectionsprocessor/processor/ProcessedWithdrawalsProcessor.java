@@ -4,11 +4,13 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 /**
  * Processor for processed strike-off partner withdrawal events.
@@ -21,6 +23,8 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 @Component
 public class ProcessedWithdrawalsProcessor
         extends AbstractWithdrawalsEventsProcessor<StrikeOffPartnerObjectionsProcessed> {
+
+    private static final String NON_RETRYABLE_404_STATUS = "(status=404)";
 
     protected ProcessedWithdrawalsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient,
@@ -37,7 +41,7 @@ public class ProcessedWithdrawalsProcessor
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing withdrawal outcome event with ID: " + message.getStrikeOffEventId());
-        var withdrawal = getWithdrawalDetails(message);
+        WithdrawAllObjectionsResponse withdrawal = getWithdrawalDetailsOrSkip(message);
 
         // Idempotent check: if already in a terminal state, skip
         if (isDuplicateRecord(withdrawal.getProcessingStatus().getValue(), WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED.getValue())
@@ -60,6 +64,24 @@ public class ProcessedWithdrawalsProcessor
         updateWithdrawalStatus(message, request);
         LOG.info("Updated withdrawal status to " + request.getProcessingStatus()
                 + " for withdrawalId=" + withdrawal.getWithdrawalId());
+    }
+
+    private WithdrawAllObjectionsResponse getWithdrawalDetailsOrSkip(StrikeOffPartnerObjectionsProcessed message) {
+        try {
+            return getWithdrawalDetails(message);
+        } catch (InvalidStrikeOffMessageException exception) {
+            if (!isNotFoundApiError(exception)) {
+                throw exception;
+            }
+            throw new DuplicateRecordException("Skipping processed withdrawal event because withdrawal was not found: strikeOffEventId="
+                    + message.getStrikeOffEventId()
+                    + ", companyNumber=" + message.getCompanyNumber());
+        }
+    }
+
+    private boolean isNotFoundApiError(RuntimeException exception) {
+        String message = exception.getMessage();
+        return message != null && message.contains(NON_RETRYABLE_404_STATUS);
     }
 
     @Override
