@@ -9,7 +9,6 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 /**
  * Processor for processed strike-off partner objection events.
@@ -21,8 +20,6 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 @Component
 public class ProcessedObjectionsProcessor
         extends AbstractObjectionsEventsProcessor<StrikeOffPartnerObjectionsProcessed> {
-
-    private static final String NON_RETRYABLE_404_STATUS = "(status=404)";
 
     protected ProcessedObjectionsProcessor(InternalApiClient internalApiClient) {
         super(internalApiClient,
@@ -39,7 +36,11 @@ public class ProcessedObjectionsProcessor
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId());
-        BaseObjectionResponse objection = getObjectionDetailsOrSkip(message);
+        BaseObjectionResponse objection = getOrSkipNotFound(
+                () -> getObjectionDetails(message),
+                () -> new DuplicateRecordException("Skipping processed objection event because objection was not found: strikeOffEventId="
+                        + message.getStrikeOffEventId()
+                        + ", companyNumber=" + message.getCompanyNumber()));
 
         // Idempotent check: if this has already been accepted or rejected, skip
         if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())
@@ -66,23 +67,6 @@ public class ProcessedObjectionsProcessor
                 + " for objectionId=" + objection.getObjectionId());
     }
 
-    private BaseObjectionResponse getObjectionDetailsOrSkip(StrikeOffPartnerObjectionsProcessed message) {
-        try {
-            return getObjectionDetails(message);
-        } catch (InvalidStrikeOffMessageException exception) {
-            if (!isNotFoundApiError(exception)) {
-                throw exception;
-            }
-            throw new DuplicateRecordException("Skipping processed objection event because objection was not found: strikeOffEventId="
-                    + message.getStrikeOffEventId()
-                    + ", companyNumber=" + message.getCompanyNumber());
-        }
-    }
-
-    private boolean isNotFoundApiError(RuntimeException exception) {
-        String message = exception.getMessage();
-        return message != null && message.contains(NON_RETRYABLE_404_STATUS);
-    }
 
     @Override
     protected void validate(StrikeOffPartnerObjectionsProcessed message) {

@@ -13,6 +13,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
@@ -26,6 +27,7 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  */
 public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
+    private static final int NOT_FOUND_STATUS = 404;
     private static final int TOO_MANY_REQUESTS_STATUS = 429;
 
     protected static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
@@ -139,6 +141,31 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
     protected final boolean isDuplicateRecord(String status, String processedStatus) {
         return processedStatus != null && processedStatus.equalsIgnoreCase(status);
+    }
+
+    protected final <R> R getOrSkipNotFound(
+            Supplier<R> retrievalAction,
+            Supplier<DuplicateRecordException> duplicateExceptionSupplier) {
+        try {
+            return retrievalAction.get();
+        } catch (InvalidStrikeOffMessageException exception) {
+            if (!isNotFoundApiError(exception)) {
+                throw exception;
+            }
+            throw duplicateExceptionSupplier.get();
+        }
+    }
+
+    private boolean isNotFoundApiError(InvalidStrikeOffMessageException exception) {
+        Throwable cause = exception.getCause();
+        if (cause instanceof ApiErrorResponseException apiErrorResponseException) {
+            return apiErrorResponseException.getStatusCode() == NOT_FOUND_STATUS;
+        }
+        if (cause instanceof ChipsSubmissionException chipsSubmissionException) {
+            return chipsSubmissionException.getStatusCode() == NOT_FOUND_STATUS;
+        }
+        String message = exception.getMessage();
+        return message != null && message.contains("(status=404)");
     }
 
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
