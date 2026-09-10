@@ -4,6 +4,7 @@ import consumer.deserialization.AvroDeserializer;
 import consumer.serialization.AvroSerializer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,6 +33,9 @@ import java.util.Map;
 @Configuration
 public class KafkaConsumerConfig {
 
+    private static final String AUTO_OFFSET_RESET_EARLIEST = "earliest";
+    private static final String ISOLATION_LEVEL_READ_COMMITTED = "read_committed";
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -58,54 +62,48 @@ public class KafkaConsumerConfig {
     // =========================================================================
     @Bean
     public ConsumerFactory<String, StrikeOffPartnerObjections> consumerFactory() {
-        return createConsumerFactory(StrikeOffPartnerObjections.class, groupId);
+        return buildConsumerFactory(
+                groupId,
+                AvroDeserializer.class,
+                new AvroDeserializer<>(StrikeOffPartnerObjections.class)
+        );
     }
 
     @Bean
     public ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> processedConsumerFactory() {
-        return createProcessedConsumerFactory();
+        return buildConsumerFactory(
+                processedGroupId,
+                DateLogicalTypeDeserializer.class,
+                new DateLogicalTypeDeserializer()
+        );
     }
 
-    private <T> ConsumerFactory<String, T> createConsumerFactory(Class<T> eventClass, String consumerGroupId) {
+    private <T> ConsumerFactory<String, T> buildConsumerFactory(
+            String consumerGroupId,
+            Class<?> valueDeserializerClass,
+            Deserializer<T> valueDeserializer) {
+        Map<String, Object> props = baseConsumerProps(consumerGroupId);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, valueDeserializerClass);
+        return new DefaultKafkaConsumerFactory<>(props,
+                new ErrorHandlingDeserializer<>(new StringDeserializer()),
+                new ErrorHandlingDeserializer<>(valueDeserializer));
+    }
+
+    private Map<String, Object> baseConsumerProps(String consumerGroupId) {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
         props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, AvroDeserializer.class);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, AUTO_OFFSET_RESET_EARLIEST);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, ISOLATION_LEVEL_READ_COMMITTED);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeout);
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, heartbeatInterval);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
-        return new DefaultKafkaConsumerFactory<>(props,
-                new ErrorHandlingDeserializer<>(new StringDeserializer()),
-                new ErrorHandlingDeserializer<>(new AvroDeserializer<>(eventClass)));
-    }
-
-    private ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> createProcessedConsumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, processedGroupId);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, DateLogicalTypeDeserializer.class);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeout);
-        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval);
-        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, heartbeatInterval);
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
-        return new DefaultKafkaConsumerFactory<>(props,
-                new ErrorHandlingDeserializer<>(new StringDeserializer()),
-                new ErrorHandlingDeserializer<>(new DateLogicalTypeDeserializer()));
+        return props;
     }
 
     // =========================================================================
