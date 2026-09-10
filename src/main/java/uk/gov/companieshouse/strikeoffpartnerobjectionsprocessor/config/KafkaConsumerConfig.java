@@ -32,26 +32,26 @@ import java.util.Map;
 @Configuration
 public class KafkaConsumerConfig {
 
-    @Value("${kafka.bootstrap-servers}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${kafka.consumer.group-id}")
+    @Value("${kafka.strikeoff.objections.group-id:default-group}")
     private String groupId;
 
-    @Value("${kafka.consumer.processed-group-id}")
+    @Value("${kafka.strikeoff.processed-objections.group-id:default-processed-group}")
     private String processedGroupId;
 
-    @Value("${kafka.consumer.session-timeout-ms}")
-    private Integer sessionTimeout;
+    @Value("${kafka.session.timeout:10000}")
+    private int sessionTimeout;
 
-    @Value("${kafka.consumer.max-poll-interval-ms}")
-    private Integer maxPollInterval;
+    @Value("${kafka.max.poll.interval:300000}")
+    private int maxPollInterval;
 
-    @Value("${kafka.consumer.heartbeat-interval-ms}")
-    private Integer heartbeatInterval;
+    @Value("${kafka.heartbeat.interval:3000}")
+    private int heartbeatInterval;
 
-    @Value("${kafka.consumer.max-poll-records}")
-    private Integer maxPollRecords;
+    @Value("${kafka.max.poll.records:500}")
+    private int maxPollRecords;
 
     // =========================================================================
     // 1. Consumer Factories
