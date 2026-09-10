@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.DateLogicalTypeDeserializer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -91,7 +92,7 @@ class KafkaConsumerConfigTest {
 
         assertEquals("processed-test-group",
                 factory.getConfigurationProperties().get(ConsumerConfig.GROUP_ID_CONFIG));
-        assertAvroEventClass(factory, StrikeOffPartnerObjectionsProcessed.class);
+        assertValueDeserializerClass(factory, DateLogicalTypeDeserializer.class);
     }
 
     @Test
@@ -184,5 +185,14 @@ class KafkaConsumerConfigTest {
         assertNotNull(avroDeserializer);
         assertEquals(expectedEventClass,
                 ReflectionTestUtils.getField(avroDeserializer, "avroClass"));
+    }
+
+    private static void assertValueDeserializerClass(
+            DefaultKafkaConsumerFactory<?, ?> factory, Class<?> expectedDeserializerClass) {
+        Object errorHandlingDeserializer = factory.getValueDeserializer();
+        assert errorHandlingDeserializer != null;
+        Object valueDeserializer = ReflectionTestUtils.getField(errorHandlingDeserializer, "delegate");
+        assertNotNull(valueDeserializer);
+        assertEquals(expectedDeserializerClass, valueDeserializer.getClass());
     }
 }
