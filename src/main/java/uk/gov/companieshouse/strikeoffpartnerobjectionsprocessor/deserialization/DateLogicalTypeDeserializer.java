@@ -8,6 +8,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.util.Map;
 
 /**
@@ -24,6 +25,7 @@ public class DateLogicalTypeDeserializer implements Deserializer<StrikeOffPartne
             new SpecificDatumReader<>(PROCESSED_EVENT_SCHEMA, PROCESSED_EVENT_SCHEMA);
 
     public DateLogicalTypeDeserializer() {
+        // Intentionally empty: Kafka creates deserializers reflectively via the public no-arg constructor.
     }
 
     @Override
@@ -52,6 +54,7 @@ public class DateLogicalTypeDeserializer implements Deserializer<StrikeOffPartne
 
     private static final class DateLogicalTypeDeserializationException extends RuntimeException {
 
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private DateLogicalTypeDeserializationException(String message, Throwable cause) {
@@ -59,4 +62,3 @@ public class DateLogicalTypeDeserializer implements Deserializer<StrikeOffPartne
         }
     }
 }
-
