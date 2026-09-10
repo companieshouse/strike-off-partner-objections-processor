@@ -9,28 +9,19 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 
 import java.io.IOException;
 import java.io.Serial;
-import java.util.Map;
 
 /**
  * Custom deserializer for StrikeOffPartnerObjectionsProcessed using a specific datum reader.
- *
- * <p>Using a specific datum reader applies Avro logical type conversions directly during
- * deserialization (for example int epoch-day to LocalDate).
  */
-public class DateLogicalTypeDeserializer implements Deserializer<StrikeOffPartnerObjectionsProcessed> {
+public class ProcessedEventDeserializer implements Deserializer<StrikeOffPartnerObjectionsProcessed> {
 
     private static final Schema PROCESSED_EVENT_SCHEMA = StrikeOffPartnerObjectionsProcessed.getClassSchema();
 
     private final SpecificDatumReader<StrikeOffPartnerObjectionsProcessed> reader =
             new SpecificDatumReader<>(PROCESSED_EVENT_SCHEMA, PROCESSED_EVENT_SCHEMA);
 
-    public DateLogicalTypeDeserializer() {
+    public ProcessedEventDeserializer() {
         // Intentionally empty: Kafka creates deserializers reflectively via the public no-arg constructor.
-    }
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {
-        // No-op: reader is fully defined by the generated specific schema.
     }
 
     @Override
@@ -42,23 +33,20 @@ public class DateLogicalTypeDeserializer implements Deserializer<StrikeOffPartne
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(data, null);
             return reader.read(null, decoder);
         } catch (IOException | RuntimeException ioException) {
-            throw new DateLogicalTypeDeserializationException(
+            throw new ProcessedEventDeserializationException(
                     "Failed to deserialize StrikeOffPartnerObjectionsProcessed", ioException);
         }
     }
 
-    @Override
-    public void close() {
-        // No-op.
-    }
 
-    private static final class DateLogicalTypeDeserializationException extends RuntimeException {
+    private static final class ProcessedEventDeserializationException extends RuntimeException {
 
         @Serial
         private static final long serialVersionUID = 1L;
 
-        private DateLogicalTypeDeserializationException(String message, Throwable cause) {
+        private ProcessedEventDeserializationException(String message, Throwable cause) {
             super(message, cause);
         }
     }
 }
+

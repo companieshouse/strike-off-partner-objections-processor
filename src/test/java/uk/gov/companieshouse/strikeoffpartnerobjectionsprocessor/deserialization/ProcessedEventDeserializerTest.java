@@ -15,18 +15,18 @@ import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-class DateLogicalTypeDeserializerTest {
+class ProcessedEventDeserializerTest {
     private static final String TOPIC = "processed-topic";
     @Test
     void deserialize_whenDataIsNull_returnsNull() {
-        try (DateLogicalTypeDeserializer deserializer = new DateLogicalTypeDeserializer()) {
+        try (ProcessedEventDeserializer deserializer = new ProcessedEventDeserializer()) {
             StrikeOffPartnerObjectionsProcessed result = deserializer.deserialize(TOPIC, null);
             assertNull(result);
         }
     }
     @Test
     void deserialize_validPayload_convertsLogicalDateAndEnums() throws IOException {
-        try (DateLogicalTypeDeserializer deserializer = new DateLogicalTypeDeserializer()) {
+        try (ProcessedEventDeserializer deserializer = new ProcessedEventDeserializer()) {
             byte[] payload = serialisedProcessedRecord();
             StrikeOffPartnerObjectionsProcessed result = deserializer.deserialize(TOPIC, payload);
             assertEquals("strike-001", result.getStrikeOffEventId());
@@ -38,20 +38,14 @@ class DateLogicalTypeDeserializerTest {
     }
     @Test
     void deserialize_invalidPayload_throwsDeserializationException() {
-        try (DateLogicalTypeDeserializer deserializer = new DateLogicalTypeDeserializer()) {
+        try (ProcessedEventDeserializer deserializer = new ProcessedEventDeserializer()) {
             byte[] invalidPayload = new byte[]{1, 2, 3};
             RuntimeException result = assertThrows(RuntimeException.class,
                     () -> deserializer.deserialize(TOPIC, invalidPayload));
             assertEquals("Failed to deserialize StrikeOffPartnerObjectionsProcessed", result.getMessage());
         }
     }
-    @Test
-    void configureAndClose_noopWithoutExceptions() {
-        try (DateLogicalTypeDeserializer deserializer = new DateLogicalTypeDeserializer()) {
-            deserializer.configure(null, false);
-            assertNull(deserializer.deserialize(TOPIC, null));
-        }
-    }
+
     private static byte[] serialisedProcessedRecord() throws IOException {
         final int epochDay = 20392;
         Schema schema = StrikeOffPartnerObjectionsProcessed.getClassSchema();
@@ -85,3 +79,4 @@ class DateLogicalTypeDeserializerTest {
                 .orElseThrow(() -> new IllegalStateException("Expected enum for field: " + fieldName));
     }
 }
+

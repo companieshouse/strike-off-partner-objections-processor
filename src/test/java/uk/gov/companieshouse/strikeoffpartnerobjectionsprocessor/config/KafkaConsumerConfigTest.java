@@ -21,7 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.DateLogicalTypeDeserializer;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.ProcessedEventDeserializer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -92,7 +92,7 @@ class KafkaConsumerConfigTest {
 
         assertEquals("processed-test-group",
                 factory.getConfigurationProperties().get(ConsumerConfig.GROUP_ID_CONFIG));
-        assertValueDeserializerClass(factory, DateLogicalTypeDeserializer.class);
+        assertValueDeserializerClass(factory, ProcessedEventDeserializer.class);
     }
 
     @Test

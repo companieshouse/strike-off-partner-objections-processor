@@ -20,7 +20,7 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.DateLogicalTypeDeserializer;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.ProcessedEventDeserializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -73,8 +73,8 @@ public class KafkaConsumerConfig {
     public ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> processedConsumerFactory() {
         return buildConsumerFactory(
                 processedGroupId,
-                DateLogicalTypeDeserializer.class,
-                new DateLogicalTypeDeserializer()
+                ProcessedEventDeserializer.class,
+                new ProcessedEventDeserializer()
         );
     }
 
