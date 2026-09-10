@@ -165,7 +165,7 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
             return chipsSubmissionException.getStatusCode() == NOT_FOUND_STATUS;
         }
         String message = exception.getMessage();
-        return message != null && message.contains("(status=404)");
+        return message != null && message.contains("(status=" + NOT_FOUND_STATUS + ")");
     }
 
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {

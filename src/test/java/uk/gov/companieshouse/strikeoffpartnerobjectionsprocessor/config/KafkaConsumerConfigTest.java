@@ -190,7 +190,7 @@ class KafkaConsumerConfigTest {
     private static void assertValueDeserializerClass(
             DefaultKafkaConsumerFactory<?, ?> factory, Class<?> expectedDeserializerClass) {
         Object errorHandlingDeserializer = factory.getValueDeserializer();
-        assert errorHandlingDeserializer != null;
+        assertNotNull(errorHandlingDeserializer);
         Object valueDeserializer = ReflectionTestUtils.getField(errorHandlingDeserializer, "delegate");
         assertNotNull(valueDeserializer);
         assertEquals(expectedDeserializerClass, valueDeserializer.getClass());
