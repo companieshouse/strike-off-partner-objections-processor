@@ -1,6 +1,5 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization;
 
-import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -15,14 +14,8 @@ import java.io.Serial;
  */
 public class ProcessedEventDeserializer implements Deserializer<StrikeOffPartnerObjectionsProcessed> {
 
-    private static final Schema PROCESSED_EVENT_SCHEMA = StrikeOffPartnerObjectionsProcessed.getClassSchema();
-
     private final SpecificDatumReader<StrikeOffPartnerObjectionsProcessed> reader =
-            new SpecificDatumReader<>(PROCESSED_EVENT_SCHEMA, PROCESSED_EVENT_SCHEMA);
-
-    public ProcessedEventDeserializer() {
-        // Intentionally empty: Kafka creates deserializers reflectively via the public no-arg constructor.
-    }
+            new SpecificDatumReader<>(StrikeOffPartnerObjectionsProcessed.class);
 
     @Override
     public StrikeOffPartnerObjectionsProcessed deserialize(String topic, byte[] data) {
