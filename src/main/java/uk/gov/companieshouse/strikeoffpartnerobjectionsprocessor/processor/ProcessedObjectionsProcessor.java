@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
+import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
@@ -35,7 +36,11 @@ public class ProcessedObjectionsProcessor
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId());
-        var objection = getObjectionDetails(message);
+        BaseObjectionResponse objection = getOrSkipNotFound(
+                () -> getObjectionDetails(message),
+                () -> new DuplicateRecordException("Skipping processed objection event because objection was not found: strikeOffEventId="
+                        + message.getStrikeOffEventId()
+                        + ", companyNumber=" + message.getCompanyNumber()));
 
         // Idempotent check: if this has already been accepted or rejected, skip
         if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())
@@ -61,6 +66,7 @@ public class ProcessedObjectionsProcessor
         LOG.info("Updated objection status to " + request.getProcessingStatus()
                 + " for objectionId=" + objection.getObjectionId());
     }
+
 
     @Override
     protected void validate(StrikeOffPartnerObjectionsProcessed message) {

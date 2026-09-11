@@ -12,6 +12,8 @@ import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import java.time.LocalDate;
@@ -234,6 +236,82 @@ class AbstractEventsProcessorTest {
     @Test
     void isDuplicateRecord_nullProcessedStatus_returnsFalse() {
         assertFalse(processor.isDuplicateRecord("PROCESSED", null));
+    }
+
+    @Test
+    void getOrSkipNotFound_successfulRetrieval_returnsValue() {
+        String value = processor.getOrSkipNotFound(
+                () -> "retrieved-value",
+                () -> new DuplicateRecordException("should-not-be-used"));
+
+        assertEquals("retrieved-value", value);
+    }
+
+    @Test
+    void getOrSkipNotFound_api404Cause_throwsDuplicateRecordException() {
+        InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
+                "Non-retryable API error for eventId=evt-001",
+                apiException(404));
+
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.getOrSkipNotFound(
+                        () -> {
+                            throw notFoundException;
+                        },
+                        () -> new DuplicateRecordException("skip-404")));
+
+        assertEquals("skip-404", exception.getMessage());
+    }
+
+    @Test
+    void getOrSkipNotFound_chips404Cause_throwsDuplicateRecordException() {
+        InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
+                "Non-retryable API error for eventId=evt-001",
+                new ChipsSubmissionException("not found", 404));
+
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.getOrSkipNotFound(
+                        () -> {
+                            throw notFoundException;
+                        },
+                        () -> new DuplicateRecordException("skip-chips-404")));
+
+        assertEquals("skip-chips-404", exception.getMessage());
+    }
+
+    @Test
+    void getOrSkipNotFound_statusMessageFallback_throwsDuplicateRecordException() {
+        InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
+                "Non-retryable API error (status=404) for eventId=evt-001");
+
+        DuplicateRecordException exception = assertThrows(
+                DuplicateRecordException.class,
+                () -> processor.getOrSkipNotFound(
+                        () -> {
+                            throw notFoundException;
+                        },
+                        () -> new DuplicateRecordException("skip-message-404")));
+
+        assertEquals("skip-message-404", exception.getMessage());
+    }
+
+    @Test
+    void getOrSkipNotFound_non404Exception_rethrowsOriginalException() {
+        InvalidStrikeOffMessageException exception = new InvalidStrikeOffMessageException(
+                "Non-retryable API error (status=422) for eventId=evt-001",
+                apiException(422));
+
+        InvalidStrikeOffMessageException result = assertThrows(
+                InvalidStrikeOffMessageException.class,
+                () -> processor.getOrSkipNotFound(
+                        () -> {
+                            throw exception;
+                        },
+                        () -> new DuplicateRecordException("should-not-be-used")));
+
+        assertSame(exception, result);
     }
 
     private static Stream<Arguments> invalidIncomingFields() {

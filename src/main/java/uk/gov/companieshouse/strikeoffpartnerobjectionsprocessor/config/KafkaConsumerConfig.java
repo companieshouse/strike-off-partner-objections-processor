@@ -4,6 +4,7 @@ import consumer.deserialization.AvroDeserializer;
 import consumer.serialization.AvroSerializer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -19,12 +20,22 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.ProcessedEventDeserializer;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Kafka configuration for consuming and producing strike-off partner objections messages.
+ * Configures separate consumer and producer factories for both incoming objections and
+ * processed objections events, with appropriate error handling and date deserialization support.
+ */
 @Configuration
 public class KafkaConsumerConfig {
+
+    private static final String AUTO_OFFSET_RESET_EARLIEST = "earliest";
+    private static final String ISOLATION_LEVEL_READ_COMMITTED = "read_committed";
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -46,39 +57,53 @@ public class KafkaConsumerConfig {
     @Value("${kafka.max.poll.records:500}")
     private int maxPollRecords;
 
-
     // =========================================================================
-    // 1. Consumer Factory Configuration
+    // 1. Consumer Factories
     // =========================================================================
     @Bean
     public ConsumerFactory<String, StrikeOffPartnerObjections> consumerFactory() {
-        return createConsumerFactory(StrikeOffPartnerObjections.class, groupId);
+        return buildConsumerFactory(
+                groupId,
+                AvroDeserializer.class,
+                new AvroDeserializer<>(StrikeOffPartnerObjections.class)
+        );
     }
 
     @Bean
     public ConsumerFactory<String, StrikeOffPartnerObjectionsProcessed> processedConsumerFactory() {
-        return createConsumerFactory(StrikeOffPartnerObjectionsProcessed.class, processedGroupId);
+        return buildConsumerFactory(
+                processedGroupId,
+                ProcessedEventDeserializer.class,
+                new ProcessedEventDeserializer()
+        );
     }
 
-    private <T> ConsumerFactory<String, T> createConsumerFactory(Class<T> eventClass, String consumerGroupId) {
+    private <T> ConsumerFactory<String, T> buildConsumerFactory(
+            String consumerGroupId,
+            Class<?> valueDeserializerClass,
+            Deserializer<T> valueDeserializer) {
+        Map<String, Object> props = baseConsumerProps(consumerGroupId);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, valueDeserializerClass);
+        return new DefaultKafkaConsumerFactory<>(props,
+                new ErrorHandlingDeserializer<>(new StringDeserializer()),
+                new ErrorHandlingDeserializer<>(valueDeserializer));
+    }
+
+    private Map<String, Object> baseConsumerProps(String consumerGroupId) {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
         props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, AvroDeserializer.class);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, AUTO_OFFSET_RESET_EARLIEST);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, ISOLATION_LEVEL_READ_COMMITTED);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeout);
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, heartbeatInterval);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
-        return new DefaultKafkaConsumerFactory<>(props,
-                new ErrorHandlingDeserializer<>(new StringDeserializer()),
-                new ErrorHandlingDeserializer<>(new AvroDeserializer<>(eventClass)));
+        return props;
     }
 
     // =========================================================================
@@ -145,3 +170,4 @@ public class KafkaConsumerConfig {
         return new KafkaTemplate<>(producerFactory);
     }
 }
+

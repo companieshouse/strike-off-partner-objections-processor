@@ -13,6 +13,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
@@ -25,6 +26,9 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  * @param <T> the Avro message type handled by the processor
  */
 public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
+
+    private static final int NOT_FOUND_STATUS = 404;
+    private static final int TOO_MANY_REQUESTS_STATUS = 429;
 
     protected static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
 
@@ -139,12 +143,38 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
         return processedStatus != null && processedStatus.equalsIgnoreCase(status);
     }
 
+    protected final <R> R getOrSkipNotFound(
+            Supplier<R> retrievalAction,
+            Supplier<DuplicateRecordException> duplicateExceptionSupplier) {
+        try {
+            return retrievalAction.get();
+        } catch (InvalidStrikeOffMessageException exception) {
+            if (!isNotFoundApiError(exception)) {
+                throw exception;
+            }
+            throw duplicateExceptionSupplier.get();
+        }
+    }
+
+    private boolean isNotFoundApiError(InvalidStrikeOffMessageException exception) {
+        Throwable cause = exception.getCause();
+        if (cause instanceof ApiErrorResponseException apiErrorResponseException) {
+            return apiErrorResponseException.getStatusCode() == NOT_FOUND_STATUS;
+        }
+        if (cause instanceof ChipsSubmissionException chipsSubmissionException) {
+            return chipsSubmissionException.getStatusCode() == NOT_FOUND_STATUS;
+        }
+        String message = exception.getMessage();
+        return message != null && message.contains("(status=" + NOT_FOUND_STATUS + ")");
+    }
+
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
-        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
-        if (status >= 400 && status < 500 && status != 429) {
+        if (status >= 400 && status < 500 && status != TOO_MANY_REQUESTS_STATUS) {
+            LOG.info("Non-retryable API call outcome: status=" + status + ", eventId=" + eventId);
             return new InvalidStrikeOffMessageException(
                     "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
         }
+        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
         return new RuntimeException(
                 "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
     }

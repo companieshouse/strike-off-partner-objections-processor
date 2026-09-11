@@ -4,6 +4,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
+import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
@@ -37,7 +38,11 @@ public class ProcessedWithdrawalsProcessor
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing withdrawal outcome event with ID: " + message.getStrikeOffEventId());
-        var withdrawal = getWithdrawalDetails(message);
+        WithdrawAllObjectionsResponse withdrawal = getOrSkipNotFound(
+                () -> getWithdrawalDetails(message),
+                () -> new DuplicateRecordException("Skipping processed withdrawal event because withdrawal was not found: strikeOffEventId="
+                        + message.getStrikeOffEventId()
+                        + ", companyNumber=" + message.getCompanyNumber()));
 
         // Idempotent check: if already in a terminal state, skip
         if (isDuplicateRecord(withdrawal.getProcessingStatus().getValue(), WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED.getValue())
@@ -61,6 +66,7 @@ public class ProcessedWithdrawalsProcessor
         LOG.info("Updated withdrawal status to " + request.getProcessingStatus()
                 + " for withdrawalId=" + withdrawal.getWithdrawalId());
     }
+
 
     @Override
     protected void validate(StrikeOffPartnerObjectionsProcessed message) {
