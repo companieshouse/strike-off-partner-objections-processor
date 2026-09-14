@@ -13,6 +13,7 @@ import uk.gov.companieshouse.api.handler.exception.URIValidationException;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.HmrcCallbackException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -210,6 +211,23 @@ class AbstractEventsProcessorTest {
         assertFalse(result instanceof InvalidStrikeOffMessageException);
         assertTrue(result.getMessage().contains("Retryable API error (status=" + status + ")"));
         assertSame(cause, result.getCause());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {400, 403, 429, 500, 503})
+    void mapApiException_hmrcCallbackStatus_isClassifiedByStatusCode(int status) {
+        HmrcCallbackException cause = new HmrcCallbackException("hmrc callback failed", status);
+
+        RuntimeException result = processor.mapApiException(message, cause);
+
+        if (status >= 400 && status < 500 && status != 429) {
+            assertInstanceOf(InvalidStrikeOffMessageException.class, result);
+            assertTrue(result.getMessage().contains("Non-retryable API error (status=" + status + ")"));
+            return;
+        }
+
+        assertFalse(result instanceof InvalidStrikeOffMessageException);
+        assertTrue(result.getMessage().contains("Retryable API error (status=" + status + ")"));
     }
 
     @Test

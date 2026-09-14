@@ -60,7 +60,9 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 .andExpect(jsonPath("$.strike_off_event_id").value("obj-001"))
                 .andRespond(withStatus(HttpStatus.ACCEPTED));
 
-        assertDoesNotThrow(() -> client.submitForObjections(createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED), buildMessage(EventType.OBJECTION)));
+        assertDoesNotThrow(() -> client.submitForObjections(
+                createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED),
+                buildMessage(EventType.OBJECTION)));
         server.verify();
     }
 
@@ -107,7 +109,9 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 eq(String.class)))
                 .thenReturn(ResponseEntity.accepted().build());
 
-        assertDoesNotThrow(() -> submissionClient.submitForObjections(createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED), buildMessage(EventType.OBJECTION)));
+        assertDoesNotThrow(() -> submissionClient.submitForObjections(
+                createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED),
+                buildMessage(EventType.OBJECTION)));
 
         verify(restTemplate).postForEntity(
                 eq(ENDPOINT_URL),

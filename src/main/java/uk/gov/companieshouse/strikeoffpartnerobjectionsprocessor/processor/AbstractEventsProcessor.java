@@ -9,6 +9,7 @@ import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.HmrcCallbackException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
@@ -129,6 +130,11 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
         if (exception instanceof ChipsSubmissionException chipsSubmissionException) {
             return classifyStatusCodeException(
                     eventId, chipsSubmissionException.getStatusCode(), chipsSubmissionException);
+        }
+
+        if (exception instanceof HmrcCallbackException hmrcCallbackException) {
+            return classifyStatusCodeException(
+                    eventId, hmrcCallbackException.getStatusCode(), hmrcCallbackException);
         }
 
         if (exception instanceof ApiErrorResponseException apiException) {

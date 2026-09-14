@@ -9,11 +9,13 @@ import org.springframework.web.client.RestTemplate;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.CHIPS_PARTNER_OBJECTIONS_ENDPOINT;
 
 @Component
 public class ChipsPartnerObjectionsSubmissionClient {
+    private static final int ACCEPTED_STATUS = 202;
     private static final int TRANSPORT_ERROR_STATUS = 503;
+
     private final RestTemplate restTemplate;
     private final String chipsRestInterfaceBaseUrl;
 
@@ -26,16 +28,15 @@ public class ChipsPartnerObjectionsSubmissionClient {
 
     public void submitForObjections(BaseObjectionResponse baseResponse, StrikeOffPartnerObjections message) {
         ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
-        submit(request);
+        submitToEndpoint(buildChipsEndpointUrl(), request);
     }
 
     public void submitForWithdrawals(WithdrawAllObjectionsResponse baseResponse, StrikeOffPartnerObjections message) {
         ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
-        submit(request);
+        submitToEndpoint(buildChipsEndpointUrl(), request);
     }
 
-    public void submit(ChipsPartnerObjectionsSubmissionRequest request) {
-        String endpoint = buildEndpointUrl();
+    private void submitToEndpoint(String endpoint, Object request) {
         ResponseEntity<String> response;
 
         try {
@@ -47,16 +48,20 @@ public class ChipsPartnerObjectionsSubmissionClient {
         }
 
         int statusCode = response.getStatusCode().value();
-        if (statusCode != 202) {
+        if (statusCode != ACCEPTED_STATUS) {
             throw new ChipsSubmissionException("CHIPS submission returned unexpected status", statusCode);
         }
     }
 
-    private String buildEndpointUrl() {
-        if (chipsRestInterfaceBaseUrl.endsWith("/")) {
-            return chipsRestInterfaceBaseUrl.substring(0, chipsRestInterfaceBaseUrl.length() - 1)
-                    + StrikeOffPartnerEventsProcessorConstants.CHIPS_PARTNER_OBJECTIONS_ENDPOINT;
+    private String buildChipsEndpointUrl() {
+        return joinBaseAndPath(chipsRestInterfaceBaseUrl, CHIPS_PARTNER_OBJECTIONS_ENDPOINT);
+    }
+
+
+    private String joinBaseAndPath(String baseUrl, String path) {
+        if (baseUrl.endsWith("/")) {
+            return baseUrl.substring(0, baseUrl.length() - 1) + path;
         }
-        return chipsRestInterfaceBaseUrl + StrikeOffPartnerEventsProcessorConstants.CHIPS_PARTNER_OBJECTIONS_ENDPOINT;
+        return baseUrl + path;
     }
 }

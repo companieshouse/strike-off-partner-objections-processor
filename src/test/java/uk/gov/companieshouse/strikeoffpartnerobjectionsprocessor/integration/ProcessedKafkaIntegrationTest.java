@@ -29,6 +29,8 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.HmrcOutcomeCallbackClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.HmrcOutcomeCallbackRequest;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -86,6 +88,9 @@ class ProcessedKafkaIntegrationTest {
     @MockitoBean
     private ChipsPartnerObjectionsSubmissionClient chipsSubmissionClient;
 
+    @MockitoBean
+    private HmrcOutcomeCallbackClient hmrcOutcomeCallbackClient;
+
     private PrivateStrikeOffPartnerObjectionsResourceHandler handler;
 
     @BeforeEach
@@ -95,7 +100,7 @@ class ProcessedKafkaIntegrationTest {
     }
 
     @Test
-    void processedObjectionSuccess_fromKafka_updatesAcceptedStatusAndInitialExpiration() throws Exception {
+    void processedObjectionSuccess_fromKafka_updatesAcceptedStatusAndSubmitsOutcomeCallback() throws Exception {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(
                 ProcessedEventType.OBJECTION, SuccessFailureIndicator.SUCCESS);
         stubGetObjection(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
@@ -115,11 +120,20 @@ class ProcessedKafkaIntegrationTest {
         assertEquals(ObjectionProcessingStatus.OBJECTION_ACCEPTED, requestCaptor.getValue().getProcessingStatus());
         assertNotNull(requestCaptor.getValue().getInitialExpirationOn());
         assertNull(requestCaptor.getValue().getFailureReason());
+
+        ArgumentCaptor<HmrcOutcomeCallbackRequest> callbackCaptor =
+                ArgumentCaptor.forClass(HmrcOutcomeCallbackRequest.class);
+        verify(hmrcOutcomeCallbackClient, timeout(5000)).submitOutcomeCallback(callbackCaptor.capture());
+        assertEquals("strike-off-partner-objection#objection", callbackCaptor.getValue().resource_kind());
+        assertEquals("obj-001", callbackCaptor.getValue().resource_id());
+        assertEquals(COMPANY_NUMBER, callbackCaptor.getValue().company_number());
+        assertEquals(OBJECTION_URI, callbackCaptor.getValue().resource_uri());
+        assertEquals("objection-accepted", callbackCaptor.getValue().processing_outcome());
         verify(chipsSubmissionClient, never()).submitForObjections(any(), any());
     }
 
     @Test
-    void processedWithdrawalFailure_fromKafka_updatesRejectedStatusAndFailureReason() throws Exception {
+    void processedWithdrawalFailure_fromKafka_updatesRejectedStatusAndSubmitsOutcomeCallback() throws Exception {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(
                 ProcessedEventType.WITHDRAWAL, SuccessFailureIndicator.FAILURE);
         stubGetWithdrawal(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
@@ -138,6 +152,15 @@ class ProcessedKafkaIntegrationTest {
                 .updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), requestCaptor.capture());
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED, requestCaptor.getValue().getProcessingStatus());
         assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
+
+        ArgumentCaptor<HmrcOutcomeCallbackRequest> callbackCaptor =
+                ArgumentCaptor.forClass(HmrcOutcomeCallbackRequest.class);
+        verify(hmrcOutcomeCallbackClient, timeout(5000)).submitOutcomeCallback(callbackCaptor.capture());
+        assertEquals("strike-off-partner-objection#withdrawal", callbackCaptor.getValue().resource_kind());
+        assertEquals("wd-001", callbackCaptor.getValue().resource_id());
+        assertEquals(COMPANY_NUMBER, callbackCaptor.getValue().company_number());
+        assertEquals(WITHDRAWAL_URI, callbackCaptor.getValue().resource_uri());
+        assertEquals("withdrawal-rejected", callbackCaptor.getValue().processing_outcome());
         verify(chipsSubmissionClient, never()).submitForWithdrawals(any(), any());
     }
 
