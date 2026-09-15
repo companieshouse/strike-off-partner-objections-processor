@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class ChipsPartnerObjectionsSubmissionClientTest {
     private static final String BASE_URL = "http://chips-rest-interfaces";
     private static final String ENDPOINT_URL = BASE_URL + "/chipsgeneric/strike-off-partner-objections";
+    private static final String TEST_API_KEY = "test-chips-api-key-123";
     private static final String OBJECTION_ID = "obj-001";
     private static final String WITHDRAWAL_ID = "wd-001";
 
@@ -43,13 +45,14 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     void setUp() {
         RestTemplate restTemplate = new RestTemplate();
         this.server = MockRestServiceServer.bindTo(restTemplate).build();
-        this.client = new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL);
+        this.client = new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY);
     }
 
     @Test
     void submit_postsRequestToDedicatedEndpoint_andHandles202AsSuccess() {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header("CHIPS-REST-API-KEY", TEST_API_KEY))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.company_number").value("12345678"))
                 .andExpect(jsonPath("$.submission_company_name").value("TEST_ORG"))
@@ -68,6 +71,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     void submit_throwsNonRetryableFor403Response() {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header("CHIPS-REST-API-KEY", TEST_API_KEY))
                 .andRespond(withStatus(HttpStatus.FORBIDDEN));
         StrikeOffPartnerObjections message = buildMessage(EventType.WITHDRAWAL);
         WithdrawAllObjectionsResponse baseResponse = new WithdrawAllObjectionsResponse();
@@ -83,6 +87,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     void submit_throwsWhenStatusIsNot202() {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header("CHIPS-REST-API-KEY", TEST_API_KEY))
                 .andRespond(withStatus(HttpStatus.OK));
         StrikeOffPartnerObjections message = buildMessage(EventType.OBJECTION);
         WithdrawAllObjectionsResponse withdrawalResponse =
@@ -99,11 +104,11 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     void submit_usesStringResponseTypeForChipsCall() {
         RestTemplate restTemplate = mock(RestTemplate.class);
         ChipsPartnerObjectionsSubmissionClient submissionClient =
-                new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL);
+                new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY);
 
         when(restTemplate.postForEntity(
                 eq(ENDPOINT_URL),
-                any(ChipsPartnerObjectionsSubmissionRequest.class),
+                any(),
                 eq(String.class)))
                 .thenReturn(ResponseEntity.accepted().build());
 
@@ -111,8 +116,26 @@ class ChipsPartnerObjectionsSubmissionClientTest {
 
         verify(restTemplate).postForEntity(
                 eq(ENDPOINT_URL),
-                any(ChipsPartnerObjectionsSubmissionRequest.class),
+                any(),
                 eq(String.class));
+    }
+
+    @Test
+    void constructor_throwsIllegalArgumentException_whenApiKeyIsNull() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, null));
+    }
+
+    @Test
+    void constructor_throwsIllegalArgumentException_whenApiKeyIsBlank() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, "   "));
     }
 
     private StrikeOffPartnerObjections buildMessage(EventType eventType) {
