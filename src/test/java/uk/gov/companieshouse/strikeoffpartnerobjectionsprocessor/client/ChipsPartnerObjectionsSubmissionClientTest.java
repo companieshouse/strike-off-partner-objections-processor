@@ -84,6 +84,23 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     }
 
     @Test
+    void submit_throwsAuthenticationErrorFor401Response() {
+        server.expect(requestTo(ENDPOINT_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("CHIPS-REST-API-KEY", TEST_API_KEY))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+        StrikeOffPartnerObjections message = buildMessage(EventType.OBJECTION);
+        BaseObjectionResponse baseResponse = createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED);
+
+        ChipsSubmissionException exception = assertThrows(
+                ChipsSubmissionException.class,
+                () -> client.submitForObjections(baseResponse, message));
+
+        assertEquals(401, exception.getStatusCode());
+        assertEquals("CHIPS authentication failed - invalid or missing API key", exception.getMessage());
+    }
+
+    @Test
     void submit_throwsWhenStatusIsNot202() {
         server.expect(requestTo(ENDPOINT_URL))
                 .andExpect(method(HttpMethod.POST))
