@@ -11,3 +11,9 @@ task_healthcheck_interval = 60
 task_healthcheck_timeout = 5
 task_healthcheck_retries = 3
 task_healthcheck_start_period = 120
+
+# Scheduler configuration (for kafka error consumer)
+enable_scale_up_eventbridge_scheduler     = true
+enable_scale_down_eventbridge_scheduler   = true
+startup_eventbridge_scheduler_cron        = "cron(00 09 ? * * *)"
+shutdown_eventbridge_scheduler_cron       = "cron(30 09 ? * * *)"
