@@ -41,11 +41,14 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     private MockRestServiceServer server;
     private ChipsPartnerObjectionsSubmissionClient client;
 
+    private ChipsPartnerObjectionsSubmissionRequestMapper mapper;
+
     @BeforeEach
     void setUp() {
         RestTemplate restTemplate = new RestTemplate();
         this.server = MockRestServiceServer.bindTo(restTemplate).build();
-        this.client = new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY);
+        this.mapper = new ChipsPartnerObjectionsSubmissionRequestMapper();
+        this.client = new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY, mapper);
     }
 
     @Test
@@ -61,6 +64,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 .andExpect(jsonPath("$.partner_contact_email").value("12345678"))
                 .andExpect(jsonPath("$.partner_objection_reason").value("other"))
                 .andExpect(jsonPath("$.strike_off_event_id").value("obj-001"))
+                .andExpect(jsonPath("$.kind").value("Objection"))
                 .andRespond(withStatus(HttpStatus.ACCEPTED));
 
         assertDoesNotThrow(() -> client.submitForObjections(createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED), buildMessage(EventType.OBJECTION)));
@@ -121,7 +125,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     void submit_usesStringResponseTypeForChipsCall() {
         RestTemplate restTemplate = mock(RestTemplate.class);
         ChipsPartnerObjectionsSubmissionClient submissionClient =
-                new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY);
+                new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY, mapper);
 
         when(restTemplate.postForEntity(
                 eq(ENDPOINT_URL),
@@ -138,12 +142,27 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     }
 
     @Test
+    void submitForWithdrawals_setsKindToWithdrawal() {
+        server.expect(requestTo(ENDPOINT_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.kind").value("Withdrawal"))
+                .andRespond(withStatus(HttpStatus.ACCEPTED));
+
+        StrikeOffPartnerObjections message = buildMessage(EventType.WITHDRAWAL);
+        WithdrawAllObjectionsResponse withdrawalResponse =
+                createWithdrawalResponse(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
+
+        assertDoesNotThrow(() -> client.submitForWithdrawals(withdrawalResponse, message));
+        server.verify();
+    }
+
+    @Test
     void constructor_throwsIllegalArgumentException_whenApiKeyIsNull() {
         RestTemplate restTemplate = mock(RestTemplate.class);
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, null));
+                () -> new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, null, mapper));
     }
 
     @Test
@@ -152,7 +171,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, "   "));
+                () -> new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, "   ", mapper));
     }
 
     private StrikeOffPartnerObjections buildMessage(EventType eventType) {
