@@ -20,14 +20,17 @@ public class ChipsPartnerObjectionsSubmissionClient {
     private static final int TRANSPORT_ERROR_STATUS = 503;
     private static final String CHIPS_REST_API_KEY_HEADER = "CHIPS-REST-API-KEY";
     private final RestTemplate restTemplate;
+    private final ChipsPartnerObjectionsSubmissionRequestMapper requestMapper;
     private final String chipsRestInterfaceBaseUrl;
     private final String chipsRestApiKey;
 
     public ChipsPartnerObjectionsSubmissionClient(
             RestTemplate restTemplate,
             @Value("${chips.rest-interface.base-url}") String chipsRestInterfaceBaseUrl,
-            @Value("${chips.rest-interface.api-key}") String chipsRestApiKey) {
+            @Value("${chips.rest-interface.api-key}") String chipsRestApiKey,
+            ChipsPartnerObjectionsSubmissionRequestMapper requestMapper) {
         this.restTemplate = restTemplate;
+        this.requestMapper = requestMapper;
         this.chipsRestInterfaceBaseUrl = chipsRestInterfaceBaseUrl;
         this.chipsRestApiKey = chipsRestApiKey;
         
@@ -37,12 +40,12 @@ public class ChipsPartnerObjectionsSubmissionClient {
     }
 
     public void submitForObjections(BaseObjectionResponse baseResponse, StrikeOffPartnerObjections message) {
-        ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
+        ChipsPartnerObjectionsSubmissionRequest request = requestMapper.objectionRequest(baseResponse, message);
         submit(request);
     }
 
     public void submitForWithdrawals(WithdrawAllObjectionsResponse baseResponse, StrikeOffPartnerObjections message) {
-        ChipsPartnerObjectionsSubmissionRequest request = ChipsPartnerObjectionsSubmissionRequest.from(baseResponse, message);
+        ChipsPartnerObjectionsSubmissionRequest request = requestMapper.withdrawalRequest(baseResponse, message);
         submit(request);
     }
 

@@ -9,7 +9,7 @@
         <relativePath/>
     </parent>
     <artifactId>strike-off-partner-objections-processor</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>unversioned</version>
     <properties>
         <java.version>21</java.version>
         <structured-logging.version>4.0.3</structured-logging.version>
