@@ -15,6 +15,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.OBJECTION;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
@@ -97,7 +98,7 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
         if (message.getSuccessFailureIndicator() == FAILURE) {
             validateNotBlank(message.getErrorMessage(), "ErrorMessage");
         }
-        if (message.getSuccessFailureIndicator() == SUCCESS) {
+        if (message.getSuccessFailureIndicator() == SUCCESS && message.getEventType().equals(OBJECTION)) {
             validateNotBlank(String.valueOf(message.getInitialExpirationOn()), "InitialExpirationOn");
         }
     }
