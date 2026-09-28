@@ -10,6 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
+import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
@@ -31,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static uk.gov.companieshouse.strikeoff.partner.objections.EventType.OBJECTION;
-import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.WITHDRAWAL;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 
@@ -126,12 +126,14 @@ class AbstractEventsProcessorTest {
 
     @Test
     void validateProcessedEvent_successMessage_doesNotThrow() {
-        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedMessage(true)));
+        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedMessage(true, ProcessedEventType.OBJECTION)));
+        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedMessage(true, ProcessedEventType.WITHDRAWAL)));
     }
 
     @Test
     void validateProcessedEvent_failureMessage_doesNotThrow() {
-        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedMessage(false)));
+        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedMessage(false, ProcessedEventType.OBJECTION)));
+        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedMessage(false, ProcessedEventType.WITHDRAWAL)));
     }
 
     @Test
@@ -140,31 +142,51 @@ class AbstractEventsProcessorTest {
     }
 
     @Test
-    void validateProcessedWithdrawal_whenNoInitialExpirationOnValue_passesValidation() {
-        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedWithdrawalMessageWithMissingInitialExpirationOn()), "InitialExpirationOn");
+    void validateProcessedWithdrawalEvent_whenNoInitialExpirationOnValue_passesValidation() {
+        StrikeOffPartnerObjectionsProcessed processedWithdrawal = validProcessedMessage(true, ProcessedEventType.WITHDRAWAL);
+        processedWithdrawal.setInitialExpirationOn(null);
+        assertDoesNotThrow(() -> processor.validateProcessedEvent(processedWithdrawal), "InitialExpirationOn");
     }
 
     @ParameterizedTest
     @MethodSource("invalidProcessedFields")
-    void validateProcessedEvent_invalidField_throwsInvalidMessage(
+    void validateProcessedObjectionEvent_invalidField_throwsInvalidMessage(
             Consumer<StrikeOffPartnerObjectionsProcessed> fieldSetter, String expectedField) {
-        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true);
+        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true, ProcessedEventType.OBJECTION);
+        fieldSetter.accept(processedMessage);
+
+        assertMissingField(() -> processor.validateProcessedEvent(processedMessage), expectedField);
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidProcessedFields")
+    void validateProcessedWithdrawalEvent_invalidField_throwsInvalidMessage(
+            Consumer<StrikeOffPartnerObjectionsProcessed> fieldSetter, String expectedField) {
+        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true, ProcessedEventType.WITHDRAWAL);
         fieldSetter.accept(processedMessage);
 
         assertMissingField(() -> processor.validateProcessedEvent(processedMessage), expectedField);
     }
 
     @Test
-    void validateProcessedEvent_failureWithoutErrorMessage_throwsInvalidMessage() {
-        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(false);
+    void validateProcessedObjectionEvent_failureWithoutErrorMessage_throwsInvalidMessage() {
+        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(false, ProcessedEventType.OBJECTION);
         processedMessage.setErrorMessage(null);
 
         assertMissingField(() -> processor.validateProcessedEvent(processedMessage), "ErrorMessage");
     }
 
     @Test
-    void validateProcessedEvent_successWithoutExpirationDate_throwsInvalidMessage() {
-        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true);
+    void validateProcessedWithdrawalEvent_failureWithoutErrorMessage_throwsInvalidMessage() {
+        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(false, ProcessedEventType.WITHDRAWAL);
+        processedMessage.setErrorMessage(null);
+
+        assertMissingField(() -> processor.validateProcessedEvent(processedMessage), "ErrorMessage");
+    }
+
+    @Test
+    void validateProcessedObjectionEvent_successWithoutExpirationDate_throwsInvalidMessage() {
+        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true, ProcessedEventType.OBJECTION);
         processedMessage.setInitialExpirationOn(null);
 
         assertMissingField(() -> processor.validateProcessedEvent(processedMessage), "InitialExpirationOn");
@@ -356,21 +378,15 @@ class AbstractEventsProcessorTest {
                 .build();
     }
 
-    private static StrikeOffPartnerObjectionsProcessed validProcessedMessage(boolean succeeded) {
+    private static StrikeOffPartnerObjectionsProcessed validProcessedMessage(boolean succeeded, ProcessedEventType eventType) {
         return StrikeOffPartnerObjectionsProcessed.newBuilder()
-                .setEventType(WITHDRAWAL)
+                .setEventType(eventType)
                 .setInitialExpirationOn(succeeded ? LocalDate.parse("2024-12-31") : null)
                 .setCompanyNumber("12345678")
                 .setSuccessFailureIndicator(succeeded ? SUCCESS : FAILURE)
                 .setErrorMessage(succeeded ? null : "Processing failed")
                 .setStrikeOffEventId("strike-001")
                 .build();
-    }
-
-    private static StrikeOffPartnerObjectionsProcessed validProcessedWithdrawalMessageWithMissingInitialExpirationOn() {
-        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true);
-        processedMessage.setInitialExpirationOn(null);
-        return processedMessage;
     }
 
     private static ApiErrorResponseException apiException(int status) {
