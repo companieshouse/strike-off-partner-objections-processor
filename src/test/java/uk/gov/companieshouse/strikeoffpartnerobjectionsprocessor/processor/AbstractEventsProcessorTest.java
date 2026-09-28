@@ -139,6 +139,11 @@ class AbstractEventsProcessorTest {
         assertMissingField(() -> processor.validateProcessedEvent(null), "message");
     }
 
+    @Test
+    void validateProcessedWithdrawal_whenNoInitialExpirationOnValue_passesValidation() {
+        assertDoesNotThrow(() -> processor.validateProcessedEvent(validProcessedWithdrawalMessageWithMissingInitialExpirationOn()), "InitialExpirationOn");
+    }
+
     @ParameterizedTest
     @MethodSource("invalidProcessedFields")
     void validateProcessedEvent_invalidField_throwsInvalidMessage(
@@ -360,6 +365,12 @@ class AbstractEventsProcessorTest {
                 .setErrorMessage(succeeded ? null : "Processing failed")
                 .setStrikeOffEventId("strike-001")
                 .build();
+    }
+
+    private static StrikeOffPartnerObjectionsProcessed validProcessedWithdrawalMessageWithMissingInitialExpirationOn() {
+        StrikeOffPartnerObjectionsProcessed processedMessage = validProcessedMessage(true);
+        processedMessage.setInitialExpirationOn(null);
+        return processedMessage;
     }
 
     private static ApiErrorResponseException apiException(int status) {
