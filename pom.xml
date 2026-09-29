@@ -17,7 +17,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <log4j2.version>2.25.5</log4j2.version>
-        <jackson-databind.version>2.18.9</jackson-databind.version>
+        <jackson-databind.version>2.18.10</jackson-databind.version>
         <spring-framework.version>7.0.9</spring-framework.version>
         <!-- plugins properties-->
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
