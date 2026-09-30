@@ -80,7 +80,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             backOff = @BackOff(delayString = "${kafka.backoff-delay}"),
             sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
             dltTopicSuffix = "-error",
-            dltStrategy = DltStrategy.FAIL_ON_ERROR,
+            dltStrategy = DltStrategy.NO_DLT,
             autoCreateTopics = "false",
             exclude = NonRetryableErrorException.class,
             kafkaTemplate = "processedKafkaConsumerTemplate"
