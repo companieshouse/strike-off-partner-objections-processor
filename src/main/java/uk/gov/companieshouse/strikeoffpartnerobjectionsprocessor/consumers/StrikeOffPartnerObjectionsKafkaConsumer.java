@@ -18,6 +18,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
 
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
@@ -70,7 +71,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         }
         final String eventId = event.getEventId() != null ? event.getEventId() : "unknown";
         var logMap = buildKafkaLogMapForIncomingObjections(consumerRecord);
-        logAndDispatchEvent(eventId, attemptNumber, logMap, () -> processorDispatcher.dispatch(event));
+        logAndDispatchEvent(eventId, attemptNumber, logMap, event, processorDispatcher::dispatch);
     }
 
     // This topic is populated once chips has completed processing the objection or withdrawal
@@ -80,7 +81,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             backOff = @BackOff(delayString = "${kafka.backoff-delay}"),
             sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
             dltTopicSuffix = "-error",
-            dltStrategy = DltStrategy.NO_DLT,
+            dltStrategy = DltStrategy.FAIL_ON_ERROR,
             autoCreateTopics = "false",
             exclude = NonRetryableErrorException.class,
             kafkaTemplate = "processedKafkaConsumerTemplate"
@@ -100,14 +101,18 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         }
         final String eventId = event.getStrikeOffEventId() != null ? event.getStrikeOffEventId() : "unknown";
         var logMap = buildKafkaLogMapForProcessedObjections(consumerRecord);
-        logAndDispatchEvent(eventId, attemptNumber, logMap, () -> processorDispatcher.dispatch(event));
+        logAndDispatchEvent(eventId, attemptNumber, logMap, event, processorDispatcher::dispatch);
     }
 
-    private void logAndDispatchEvent(String eventId, Integer attemptNumber, Map<String, Object> logMap, Runnable dispatchAction) {
+    private <T> void logAndDispatchEvent(String eventId,
+                                         Integer attemptNumber,
+                                         Map<String, Object> logMap,
+                                         T event,
+                                         Consumer<T> dispatchAction) {
         try {
             LOG.infoContext(eventId, "Consumed objections/withdrawals event", logMap);
             LOG.infoContext(eventId, "Kafka retry attempt: " + (attemptNumber == null ? 1 : attemptNumber), logMap);
-            dispatchAction.run();
+            dispatchAction.accept(event);
             LOG.infoContext(eventId, "Event processed successfully", logMap);
         } catch (DuplicateRecordException duplicateRecordException) {
             LOG.info(duplicateRecordException.getMessage(), logMap);
@@ -143,4 +148,5 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         }
         return logMap;
     }
+
 }

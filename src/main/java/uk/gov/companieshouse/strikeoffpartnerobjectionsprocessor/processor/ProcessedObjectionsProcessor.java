@@ -36,11 +36,7 @@ public class ProcessedObjectionsProcessor
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId());
-        BaseObjectionResponse objection = getOrSkipNotFound(
-                () -> getObjectionDetails(message),
-                () -> new DuplicateRecordException("Skipping processed objection event because objection was not found: strikeOffEventId="
-                        + message.getStrikeOffEventId()
-                        + ", companyNumber=" + message.getCompanyNumber()));
+        BaseObjectionResponse objection = getObjectionDetails(message);
 
         // Idempotent check: if this has already been accepted or rejected, skip
         if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())

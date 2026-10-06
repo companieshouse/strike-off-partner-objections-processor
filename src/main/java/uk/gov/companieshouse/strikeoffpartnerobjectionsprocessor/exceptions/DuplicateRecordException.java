@@ -1,10 +1,14 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions;
-public class DuplicateRecordException extends RuntimeException {
+
+import consumer.exception.NonRetryableErrorException;
+
+public class DuplicateRecordException extends NonRetryableErrorException {
     public DuplicateRecordException(String message) {
         super(message);
     }
 
     public DuplicateRecordException(String message, Throwable cause) {
-        super(message, cause);
+        super(message);
+        initCause(cause);
     }
 }

@@ -111,16 +111,16 @@ class ProcessedWithdrawalsProcessorTest {
     }
 
     @Test
-    void process_withdrawalNotFound_throwsDuplicateWithoutUpdatingStatus() {
+    void process_withdrawalNotFound_rethrowsInvalidMessageWithoutUpdatingStatus() {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
-        doThrow(new InvalidStrikeOffMessageException(
-                "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID))
-                .when(processor).getWithdrawalDetails(message);
+        InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
+                "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID);
+        doThrow(notFoundException).when(processor).getWithdrawalDetails(message);
 
-        DuplicateRecordException exception =
-                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
+        InvalidStrikeOffMessageException exception =
+                assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
 
-        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
+        assertEquals(notFoundException, exception);
         verify(processor, never()).updateWithdrawalStatus(
                 eq(message), any(UpdateWithdrawalStatusRequest.class));
     }
@@ -137,4 +137,3 @@ class ProcessedWithdrawalsProcessorTest {
                 .processingStatus(processingStatus);
     }
 }
-

@@ -38,11 +38,7 @@ public class ProcessedWithdrawalsProcessor
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing withdrawal outcome event with ID: " + message.getStrikeOffEventId());
-        WithdrawAllObjectionsResponse withdrawal = getOrSkipNotFound(
-                () -> getWithdrawalDetails(message),
-                () -> new DuplicateRecordException("Skipping processed withdrawal event because withdrawal was not found: strikeOffEventId="
-                        + message.getStrikeOffEventId()
-                        + ", companyNumber=" + message.getCompanyNumber()));
+        WithdrawAllObjectionsResponse withdrawal = getWithdrawalDetails(message);
 
         // Idempotent check: if already in a terminal state, skip
         if (isDuplicateRecord(withdrawal.getProcessingStatus().getValue(), WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED.getValue())
@@ -73,4 +69,3 @@ public class ProcessedWithdrawalsProcessor
         validateProcessedEvent(message);
     }
 }
-

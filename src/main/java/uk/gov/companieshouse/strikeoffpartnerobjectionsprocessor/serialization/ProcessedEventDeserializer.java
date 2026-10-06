@@ -1,5 +1,6 @@
-package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization;
+package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization;
 
+import consumer.exception.NonRetryableErrorException;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -7,7 +8,6 @@ import org.apache.kafka.common.serialization.Deserializer;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 
 import java.io.IOException;
-import java.io.Serial;
 
 /**
  * Custom deserializer for StrikeOffPartnerObjectionsProcessed using a specific datum reader.
@@ -26,19 +26,8 @@ public class ProcessedEventDeserializer implements Deserializer<StrikeOffPartner
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(data, null);
             return reader.read(null, decoder);
         } catch (IOException | RuntimeException ioException) {
-            throw new ProcessedEventDeserializationException(
+            throw new NonRetryableErrorException(
                     "Failed to deserialize StrikeOffPartnerObjectionsProcessed", ioException);
-        }
-    }
-
-
-    private static final class ProcessedEventDeserializationException extends RuntimeException {
-
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        private ProcessedEventDeserializationException(String message, Throwable cause) {
-            super(message, cause);
         }
     }
 }

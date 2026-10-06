@@ -21,7 +21,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization.ProcessedEventDeserializer;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization.ProcessedEventDeserializer;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization.ProcessedEventSerializer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -121,7 +122,7 @@ class KafkaConsumerConfigTest {
 
         assertEquals("localhost:9092",
                 factory.getConfigurationProperties().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
-        assertEquals(AvroSerializer.class,
+        assertEquals(ProcessedEventSerializer.class,
                 factory.getConfigurationProperties().get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
     }
 
