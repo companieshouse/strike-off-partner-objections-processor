@@ -25,9 +25,9 @@ public class ProcessedEventDeserializer implements Deserializer<StrikeOffPartner
         try {
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(data, null);
             return reader.read(null, decoder);
-        } catch (IOException | RuntimeException ioException) {
+        } catch (Exception exception) {
             throw new NonRetryableErrorException(
-                    "Failed to deserialize StrikeOffPartnerObjectionsProcessed", ioException);
+                    "Failed to deserialize StrikeOffPartnerObjectionsProcessed", exception);
         }
     }
 }
