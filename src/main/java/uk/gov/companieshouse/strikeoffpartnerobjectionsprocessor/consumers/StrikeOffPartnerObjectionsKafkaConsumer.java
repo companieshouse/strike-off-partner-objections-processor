@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers;
 
 import consumer.exception.NonRetryableErrorException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.BackOff;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
@@ -16,30 +17,21 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
-import java.util.Map;
-
-import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
-import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.buildBaseKafkaLogMap;
-
 
 /**
  * Kafka consumer for strike-off partner objections events.
- *
- * <p>This component listens to the configured incoming topic, logs message metadata,
- * and delegates processing to {@link ProcessorDispatcher}.
- *
- * <p>Retry behavior is managed by {@link RetryableTopic}. Exceptions of type
- * {@link NonRetryableErrorException} are excluded from retries and are routed directly
- * to the configured error topic.
  */
 @Component
 public class StrikeOffPartnerObjectionsKafkaConsumer {
+    private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
+
     private final ProcessorDispatcher processorDispatcher;
 
-    private static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
+    @Value("${kafka.max-attempts}")
+    private int maxAttempts = 1;
 
     public StrikeOffPartnerObjectionsKafkaConsumer(ProcessorDispatcher processorDispatcher) {
         this.processorDispatcher = processorDispatcher;
@@ -61,20 +53,24 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeStrikeOffObjectionsMessage(
-            final @Header( name = RetryTopicHeaders.DEFAULT_HEADER_ATTEMPTS, required = false ) Integer attemptNumber,
+            final @Header(name = RetryTopicHeaders.DEFAULT_HEADER_ATTEMPTS, required = false) Integer attemptNumber,
             ConsumerRecord<String, StrikeOffPartnerObjections> consumerRecord) {
 
-        final StrikeOffPartnerObjections event = consumerRecord.value();
-        if (event == null) {
-            throw new NonRetryableErrorException("Missing StrikeOffPartnerObjections payload");
+        StrikeOffPartnerObjections event = consumerRecord.value();
+        ProcessorLogContext logContext = ProcessorLogContext.fromRecord(consumerRecord);
+        if (event != null) {
+            logContext = logContext.withIncomingEvent(event);
         }
-        final String eventId = event.getEventId() != null ? event.getEventId() : "unknown";
-        var logMap = buildKafkaLogMapForIncomingObjections(consumerRecord);
-        logAndDispatchEvent(eventId, attemptNumber, logMap, () -> processorDispatcher.dispatch(event));
+        ProcessorLogContext eventContext = logContext;
+        logAndDispatchEvent(attemptNumber, eventContext, () -> {
+            if (event == null) {
+                throw new NonRetryableErrorException("Missing StrikeOffPartnerObjections payload");
+            }
+            processorDispatcher.dispatch(event, eventContext);
+        });
     }
 
-    // This topic is populated once chips has completed processing the objection or withdrawal
-    // This method is tasked with consuming this topic and making available for downstream processing
+    // This topic is populated once CHIPS has completed processing the objection or withdrawal.
     @RetryableTopic(
             attempts = "${kafka.max-attempts}",
             backOff = @BackOff(delayString = "${kafka.backoff-delay}"),
@@ -91,56 +87,66 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             containerFactory = "processedKafkaListenerContainerFactory"
     )
     public void consumeProcessedStrikeOffObjectionsMessage(
-            final @Header( name = RetryTopicHeaders.DEFAULT_HEADER_ATTEMPTS, required = false ) Integer attemptNumber,
+            final @Header(name = RetryTopicHeaders.DEFAULT_HEADER_ATTEMPTS, required = false) Integer attemptNumber,
             ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord) {
 
-        final StrikeOffPartnerObjectionsProcessed event = consumerRecord.value();
-        if (event == null) {
-            throw new NonRetryableErrorException("Missing StrikeOffPartnerObjectionsProcessed payload");
+        StrikeOffPartnerObjectionsProcessed event = consumerRecord.value();
+        ProcessorLogContext logContext = ProcessorLogContext.fromRecord(consumerRecord);
+        if (event != null) {
+            logContext = logContext.withProcessedEvent(event);
         }
-        final String eventId = event.getStrikeOffEventId() != null ? event.getStrikeOffEventId() : "unknown";
-        var logMap = buildKafkaLogMapForProcessedObjections(consumerRecord);
-        logAndDispatchEvent(eventId, attemptNumber, logMap, () -> processorDispatcher.dispatch(event));
+        ProcessorLogContext eventContext = logContext;
+        logAndDispatchEvent(attemptNumber, eventContext, () -> {
+            if (event == null) {
+                throw new NonRetryableErrorException("Missing StrikeOffPartnerObjectionsProcessed payload");
+            }
+            LOG.info("Processed outcome received",
+                    eventContext.withOperation(ProcessorLogContext.PROCESSED_OUTCOME_RECEIVED).toLogMap());
+            processorDispatcher.dispatch(event, eventContext);
+        });
     }
 
-    private void logAndDispatchEvent(String eventId, Integer attemptNumber, Map<String, Object> logMap, Runnable dispatchAction) {
+    private void logAndDispatchEvent(
+            Integer attemptNumber, ProcessorLogContext logContext, Runnable dispatchAction) {
+        int deliveryAttempt = attemptNumber == null ? 1 : attemptNumber;
+        int retryCount = Math.max(deliveryAttempt - 1, 0);
+        ProcessorLogContext attemptContext = logContext.withRetry(retryCount, null);
+        LOG.info("Kafka message received",
+                attemptContext.withOperation(ProcessorLogContext.KAFKA_MESSAGE_RECEIVED).toLogMap());
+
         try {
-            LOG.infoContext(eventId, "Consumed objections/withdrawals event", logMap);
-            LOG.infoContext(eventId, "Kafka retry attempt: " + (attemptNumber == null ? 1 : attemptNumber), logMap);
+            LOG.info("Message processing started",
+                    attemptContext.withOperation(ProcessorLogContext.PROCESSING_STARTED).toLogMap());
             dispatchAction.run();
-            LOG.infoContext(eventId, "Event processed successfully", logMap);
-        } catch (DuplicateRecordException duplicateRecordException) {
-            LOG.info(duplicateRecordException.getMessage(), logMap);
+            LOG.info("Message processing completed",
+                    attemptContext.withOperation(ProcessorLogContext.PROCESSING_COMPLETED).toLogMap());
+        } catch (DuplicateRecordException exception) {
+            ProcessorLogContext duplicateContext = exception.getLogContext() == null
+                    ? attemptContext : exception.getLogContext();
+            LOG.info("Duplicate event skipped",
+                    duplicateContext.withRetry(retryCount, null)
+                            .withOperation(ProcessorLogContext.PROCESSING_SKIPPED).toLogMap());
         } catch (Exception exception) {
-            LOG.error("Error encountered in StrikeOffPartnerObjectionsKafkaConsumer: " + exception.getMessage(), exception, logMap);
+            logProcessingFailure(exception, attemptContext, deliveryAttempt, retryCount);
             throw exception;
         }
     }
 
-    private Map<String, Object> buildKafkaLogMapForIncomingObjections(ConsumerRecord<String, StrikeOffPartnerObjections> consumerRecord) {
-        StrikeOffPartnerObjections msg = consumerRecord.value();
-        Map<String, Object> logMap = buildBaseKafkaLogMap(consumerRecord);
-        logMap.put("company_number", msg != null ? msg.getCompanyNumber() : null);
-        logMap.put("strike_off_event_id", msg != null ? msg.getStrikeOffEventId() : null);
-        logMap.put("partner_organisation", msg != null ? msg.getPartnerOrganisation() : null);
-        logMap.put("event_type", msg != null ? msg.getEventType() : null);
-        logMap.put("event_id", msg != null ? msg.getEventId() : null);
-        return logMap;
-    }
+    private void logProcessingFailure(
+            Exception exception, ProcessorLogContext logContext, int deliveryAttempt, int retryCount) {
+        String errorType = exception.getClass().getSimpleName();
+        ProcessorLogContext failureContext = logContext
+                .withRetry(retryCount, errorType)
+                .withErrorType(errorType);
+        boolean terminalFailure = exception instanceof NonRetryableErrorException
+                || deliveryAttempt >= maxAttempts;
 
-    private Map<String, Object> buildKafkaLogMapForProcessedObjections(ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord) {
-        StrikeOffPartnerObjectionsProcessed msg = consumerRecord.value();
-        Map<String, Object> logMap = buildBaseKafkaLogMap(consumerRecord);
-        logMap.put("company_number", msg != null ? msg.getCompanyNumber() : null);
-        logMap.put("strike_off_event_id", msg != null ? msg.getStrikeOffEventId() : null);
-        logMap.put("event_type", msg != null ? msg.getEventType() : null);
-        logMap.put("success_failure_indicator", msg != null ? msg.getSuccessFailureIndicator() : null);
-        if (msg != null && msg.getSuccessFailureIndicator() == FAILURE) {
-            logMap.put("error_message", msg.getErrorMessage());
+        if (terminalFailure) {
+            LOG.error("Message processing failed",
+                    failureContext.withOperation(ProcessorLogContext.PROCESSING_FAILED).toLogMap());
+            return;
         }
-        if (msg != null && msg.getSuccessFailureIndicator() == SUCCESS) {
-            logMap.put("initial_expiration_on", msg.getInitialExpirationOn());
-        }
-        return logMap;
+        LOG.warn("Message processing will be retried",
+                failureContext.withOperation(ProcessorLogContext.RETRY).toLogMap());
     }
 }

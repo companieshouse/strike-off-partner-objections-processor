@@ -14,11 +14,14 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.OBJECTION;
@@ -40,7 +43,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord);
 
-        verify(processorDispatcher).dispatch(objectionRecord.value());
+        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
     }
 
     @Test
@@ -49,14 +52,14 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         consumer.consumeStrikeOffObjectionsMessage(null, objectionRecord);
 
-        verify(processorDispatcher).dispatch(objectionRecord.value());
+        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
     }
 
     @Test
     void consumeMessage_dispatcherThrows_rethrowsException() {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         doThrow(new RuntimeException("processing failed"))
-                .when(processorDispatcher).dispatch(objectionRecord.value());
+                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
@@ -66,7 +69,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeMessage_dispatcherThrowsNonRetryable_rethrowsAsIs() {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         doThrow(new NonRetryableErrorException("bad message"))
-                .when(processorDispatcher).dispatch(objectionRecord.value());
+                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
@@ -85,13 +88,13 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         doThrow(new DuplicateRecordException("Duplicate record"))
                 .when(processorDispatcher)
-                .dispatch(event);
+                .dispatch(eq(event), any(ProcessorLogContext.class));
 
         // When / Then
         assertDoesNotThrow(() ->
                 consumer.consumeStrikeOffObjectionsMessage(1, consumerRecord));
 
-        verify(processorDispatcher).dispatch(event);
+        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
     }
 
     @Test
@@ -111,7 +114,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, event);
 
         assertDoesNotThrow(() -> consumer.consumeStrikeOffObjectionsMessage(1, recordWithNullEventId));
-        verify(processorDispatcher).dispatch(event);
+        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
     }
 
     @ParameterizedTest
@@ -121,7 +124,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         consumer.consumeProcessedStrikeOffObjectionsMessage(1, objectionRecord);
 
-        verify(processorDispatcher).dispatch(objectionRecord.value());
+        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
     }
 
     @ParameterizedTest
@@ -131,7 +134,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> objectionRecord = triggerProcessedObjectionEvent(wasSuccessful);
         consumer.consumeProcessedStrikeOffObjectionsMessage(null, objectionRecord);
 
-        verify(processorDispatcher).dispatch(objectionRecord.value());
+        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
     }
 
     @ParameterizedTest
@@ -139,7 +142,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeProcessedMessage_dispatcherThrows_rethrowsException(boolean wasSuccessful) {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> objectionRecord = triggerProcessedObjectionEvent(wasSuccessful);
         doThrow(new RuntimeException("processing failed"))
-                .when(processorDispatcher).dispatch(objectionRecord.value());
+                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, objectionRecord));
@@ -150,7 +153,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeProcessedMessage_dispatcherThrowsNonRetryable_rethrowsAsIs(boolean wasSuccessful) {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> objectionRecord = triggerProcessedObjectionEvent(wasSuccessful);
         doThrow(new NonRetryableErrorException("bad message"))
-                .when(processorDispatcher).dispatch(objectionRecord.value());
+                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, objectionRecord));
@@ -168,13 +171,13 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         doThrow(new DuplicateRecordException("Duplicate record"))
                 .when(processorDispatcher)
-                .dispatch(event);
+                .dispatch(eq(event), any(ProcessorLogContext.class));
 
         // When / Then
         assertDoesNotThrow(() ->
                 consumer.consumeProcessedStrikeOffObjectionsMessage(1, consumerRecord));
 
-        verify(processorDispatcher).dispatch(event);
+        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
     }
 
     @ParameterizedTest
@@ -196,7 +199,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, event);
 
         assertDoesNotThrow(() -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, recordWithNullEventId));
-        verify(processorDispatcher).dispatch(event);
+        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
     }
 
     private ConsumerRecord<String, StrikeOffPartnerObjections> triggerObjectionEvent() {
@@ -224,4 +227,3 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         return new ConsumerRecord<>("strike-off-partner-objections-processed", 0, 0L, null, event);
     }
 }
-

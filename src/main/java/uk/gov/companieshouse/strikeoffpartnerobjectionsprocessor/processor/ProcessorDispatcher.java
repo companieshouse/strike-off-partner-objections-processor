@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import java.util.List;
 
@@ -38,12 +39,28 @@ public class ProcessorDispatcher {
                 .process(message);
     }
 
+    public void dispatch(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
+        processors.stream()
+                .filter(processor -> processor.eventTypeSupported(message))
+                .findFirst()
+                .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
+                .process(message, logContext);
+    }
+
     public void dispatch(StrikeOffPartnerObjectionsProcessed message) {
         processedEventsProcessors.stream()
                 .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
                 .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
                 .process(message);
+    }
+
+    public void dispatch(StrikeOffPartnerObjectionsProcessed message, ProcessorLogContext logContext) {
+        processedEventsProcessors.stream()
+                .filter(processor -> processor.eventTypeSupported(message))
+                .findFirst()
+                .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
+                .process(message, logContext);
     }
 
 }

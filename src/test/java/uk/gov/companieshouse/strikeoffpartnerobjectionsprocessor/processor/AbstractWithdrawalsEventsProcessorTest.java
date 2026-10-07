@@ -12,6 +12,7 @@ import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,7 +58,7 @@ class AbstractWithdrawalsEventsProcessorTest {
             }
 
             @Override
-            protected void doProcess(StrikeOffPartnerObjections message) {
+            protected void doProcess(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
                 // Not required when testing withdrawal-specific API operations.
             }
         };

@@ -110,14 +110,14 @@ class IncomingWithdrawalsProcessorTest {
                 message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         doThrow(new ChipsSubmissionException("forbidden", 403))
                 .when(chipsPartnerObjectionsSubmissionClient)
-                .submitForWithdrawals(any(), any());
+                .submitForWithdrawals(any(), any(), any());
 
         InvalidStrikeOffMessageException exception = assertThrows(
                 InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
 
         assertTrue(exception.getMessage().contains("Non-retryable API error (status=403)"));
-        verify(chipsPartnerObjectionsSubmissionClient).submitForWithdrawals(any(), eq(message));
+        verify(chipsPartnerObjectionsSubmissionClient).submitForWithdrawals(any(), eq(message), any());
     }
 
     private static WithdrawAllObjectionsResponse withdrawalWithStatus(

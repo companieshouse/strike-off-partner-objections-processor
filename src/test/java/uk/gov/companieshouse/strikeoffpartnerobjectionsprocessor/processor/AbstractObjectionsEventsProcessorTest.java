@@ -12,6 +12,7 @@ import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,7 +56,7 @@ class AbstractObjectionsEventsProcessorTest {
             }
 
             @Override
-            protected void doProcess(StrikeOffPartnerObjections message) {
+            protected void doProcess(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
                 // Not required when testing objection-specific API operations.
             }
         };
