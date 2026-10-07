@@ -146,7 +146,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
                     failureContext.withOperation(ProcessorLogContext.PROCESSING_FAILED).toLogMap());
             return;
         }
-        LOG.warn("Message processing will be retried",
+        LOG.info("Message processing will be retried",
                 failureContext.withOperation(ProcessorLogContext.RETRY).toLogMap());
     }
 }
