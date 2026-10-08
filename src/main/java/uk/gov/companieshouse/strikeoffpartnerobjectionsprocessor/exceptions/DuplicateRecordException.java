@@ -1,8 +1,9 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions;
 
+import consumer.exception.NonRetryableErrorException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
-public class DuplicateRecordException extends RuntimeException {
+public class DuplicateRecordException extends NonRetryableErrorException {
     private final transient ProcessorLogContext logContext;
 
     public DuplicateRecordException(String message) {
@@ -19,7 +20,8 @@ public class DuplicateRecordException extends RuntimeException {
 
     private DuplicateRecordException(
             String message, Throwable cause, ProcessorLogContext logContext) {
-        super(message, cause);
+        super(message);
+        initCause(cause);
         this.logContext = logContext;
     }
 

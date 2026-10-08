@@ -76,7 +76,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             backOff = @BackOff(delayString = "${kafka.backoff-delay}"),
             sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
             dltTopicSuffix = "-error",
-            dltStrategy = DltStrategy.NO_DLT,
+            dltStrategy = DltStrategy.FAIL_ON_ERROR,
             autoCreateTopics = "false",
             exclude = NonRetryableErrorException.class,
             kafkaTemplate = "processedKafkaConsumerTemplate"
@@ -149,4 +149,5 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         LOG.info("Message processing will be retried",
                 failureContext.withOperation(ProcessorLogContext.RETRY).toLogMap());
     }
+
 }

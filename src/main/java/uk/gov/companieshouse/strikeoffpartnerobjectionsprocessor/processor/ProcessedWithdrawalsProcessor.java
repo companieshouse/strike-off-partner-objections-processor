@@ -39,11 +39,7 @@ public class ProcessedWithdrawalsProcessor
     @Override
     protected void doProcess(
             StrikeOffPartnerObjectionsProcessed message, ProcessorLogContext logContext) {
-        WithdrawAllObjectionsResponse withdrawal = getOrSkipNotFound(
-                () -> getWithdrawalDetails(message, logContext),
-                () -> new DuplicateRecordException("Skipping processed withdrawal event because withdrawal was not found: strikeOffEventId="
-                        + message.getStrikeOffEventId()
-                        + ", companyNumber=" + message.getCompanyNumber(), logContext));
+        WithdrawAllObjectionsResponse withdrawal = getWithdrawalDetails(message, logContext);
         ProcessorLogContext withdrawalContext = logContext.withWithdrawalId(withdrawal.getWithdrawalId());
 
         // Idempotent check: if already in a terminal state, skip
