@@ -10,6 +10,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPar
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,13 +54,13 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        doReturn(objection).when(processor).getObjectionDetails(message);
+        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
         doNothing().when(processor).updateObjectionStatus(
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
 
         assertDoesNotThrow(() -> processor.process(message));
 
-        verify(processor).getObjectionDetails(message);
+        verify(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
         verify(processor).updateObjectionStatus(
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
     }
@@ -69,7 +70,7 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_PROCESSING);
-        doReturn(objection).when(processor).getObjectionDetails(message);
+        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
 
         DuplicateRecordException exception =
                 assertThrows(DuplicateRecordException.class, () -> processor.process(message));
@@ -87,7 +88,7 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        doReturn(objection).when(processor).getObjectionDetails(message);
+        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
         doNothing().when(processor).updateObjectionStatus(
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         doThrow(new ChipsSubmissionException("bad request", 400))
@@ -107,7 +108,7 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_PROCESSING);
-        doReturn(objection).when(processor).getObjectionDetails(message);
+        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
 
         assertThrows(DuplicateRecordException.class, () -> processor.process(message));
 

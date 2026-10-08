@@ -30,26 +30,22 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         super(internalApiClient, eventIdGetter, companyNumberGetter, strikeOffEventIdGetter);
     }
 
-    protected final WithdrawAllObjectionsResponse getWithdrawalDetails(T message) {
-        String uri = buildResourceUri(message, WITHDRAWALS);
-        try {
-            var response = internalApiClient
-                    .privateStrikeOffPartnerObjectionsResourceHandler()
-                    .getAllWithdrawals(uri)
-                    .execute();
-            return response.getData();
-        } catch (Exception exception) {
-            throw mapApiException(message, exception);
-        }
-    }
-
     protected final WithdrawAllObjectionsResponse getWithdrawalDetails(T message, ProcessorLogContext logContext) {
         String uri = buildResourceUri(message, WITHDRAWALS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_GET_WITHDRAWAL_REQUEST)
                 .withResource(WITHDRAWAL_RESOURCE_KIND, uri);
         LOG.info("Requesting withdrawal details from internal API", requestContext.toLogMap());
-        WithdrawAllObjectionsResponse response = getWithdrawalDetails(message);
+        WithdrawAllObjectionsResponse response;
+        try {
+            var apiResponse = internalApiClient
+                    .privateStrikeOffPartnerObjectionsResourceHandler()
+                    .getAllWithdrawals(uri)
+                    .execute();
+            response = apiResponse.getData();
+        } catch (Exception exception) {
+            throw mapApiException(message, exception);
+        }
         LOG.info("Received withdrawal details from internal API",
                 requestContext.withOperation(ProcessorLogContext.INTERNAL_API_GET_WITHDRAWAL_RESPONSE)
                         .withWithdrawalId(response.getWithdrawalId())

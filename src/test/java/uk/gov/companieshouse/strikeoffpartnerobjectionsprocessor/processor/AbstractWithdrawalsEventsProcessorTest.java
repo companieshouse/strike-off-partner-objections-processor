@@ -75,7 +75,7 @@ class AbstractWithdrawalsEventsProcessorTest {
         when(handler.getAllWithdrawals(WITHDRAWAL_URI)).thenReturn(getWithdrawal);
         when(getWithdrawal.execute()).thenReturn(new ApiResponse<>(200, null, withdrawal));
 
-        WithdrawAllObjectionsResponse result = processor.getWithdrawalDetails(message);
+        WithdrawAllObjectionsResponse result = processor.getWithdrawalDetails(message, ProcessorLogContext.empty());
 
         assertSame(withdrawal, result);
         verify(handler).getAllWithdrawals(WITHDRAWAL_URI);
@@ -88,8 +88,9 @@ class AbstractWithdrawalsEventsProcessorTest {
         when(handler.getAllWithdrawals(WITHDRAWAL_URI)).thenReturn(getWithdrawal);
         when(getWithdrawal.execute()).thenThrow(cause);
 
+        ProcessorLogContext logContext = ProcessorLogContext.empty();
         RuntimeException exception =
-                assertThrows(RuntimeException.class, () -> processor.getWithdrawalDetails(message));
+                assertThrows(RuntimeException.class, () -> processor.getWithdrawalDetails(message, logContext));
 
         assertEquals("Retryable error for eventId=" + EVENT_ID, exception.getMessage());
         assertSame(cause, exception.getCause());

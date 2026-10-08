@@ -30,26 +30,22 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         super(internalApiClient, eventIdGetter, companyNumberGetter, strikeOffEventIdGetter);
     }
 
-    protected final BaseObjectionResponse getObjectionDetails(T message) {
-        String uri = buildResourceUri(message, OBJECTIONS);
-        try {
-            var response = internalApiClient
-                    .privateStrikeOffPartnerObjectionsResourceHandler()
-                    .getObjection(uri)
-                    .execute();
-            return response.getData();
-        } catch (Exception exception) {
-            throw mapApiException(message, exception);
-        }
-    }
-
     protected final BaseObjectionResponse getObjectionDetails(T message, ProcessorLogContext logContext) {
         String uri = buildResourceUri(message, OBJECTIONS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_GET_OBJECTION_REQUEST)
                 .withResource(OBJECTION_RESOURCE_KIND, uri);
         LOG.info("Requesting objection details from internal API", requestContext.toLogMap());
-        BaseObjectionResponse response = getObjectionDetails(message);
+        BaseObjectionResponse response;
+        try {
+            var apiResponse = internalApiClient
+                    .privateStrikeOffPartnerObjectionsResourceHandler()
+                    .getObjection(uri)
+                    .execute();
+            response = apiResponse.getData();
+        } catch (Exception exception) {
+            throw mapApiException(message, exception);
+        }
         LOG.info("Received objection details from internal API",
                 requestContext.withOperation(ProcessorLogContext.INTERNAL_API_GET_OBJECTION_RESPONSE)
                         .withObjectionId(response.getObjectionId())

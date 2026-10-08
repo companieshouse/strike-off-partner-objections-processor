@@ -10,6 +10,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPar
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,13 +54,13 @@ class IncomingWithdrawalsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(WITHDRAWAL);
         WithdrawAllObjectionsResponse withdrawal = withdrawalWithStatus(
                 WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
-        doReturn(withdrawal).when(processor).getWithdrawalDetails(message);
+        doReturn(withdrawal).when(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
         doNothing().when(processor).updateWithdrawalStatus(
                 message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
 
         assertDoesNotThrow(() -> processor.process(message));
 
-        verify(processor).getWithdrawalDetails(message);
+        verify(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
         verify(processor).updateWithdrawalStatus(
                 message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
     }
@@ -69,7 +70,7 @@ class IncomingWithdrawalsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(WITHDRAWAL);
         WithdrawAllObjectionsResponse withdrawal = withdrawalWithStatus(
                 WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
-        doReturn(withdrawal).when(processor).getWithdrawalDetails(message);
+        doReturn(withdrawal).when(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
 
         DuplicateRecordException exception =
                 assertThrows(DuplicateRecordException.class, () -> processor.process(message));
@@ -87,7 +88,7 @@ class IncomingWithdrawalsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(WITHDRAWAL);
         WithdrawAllObjectionsResponse withdrawal = withdrawalWithStatus(
                 WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED);
-        doReturn(withdrawal).when(processor).getWithdrawalDetails(message);
+        doReturn(withdrawal).when(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
 
         InvalidStrikeOffMessageException exception = assertThrows(
                 InvalidStrikeOffMessageException.class, () -> processor.process(message));
@@ -105,7 +106,7 @@ class IncomingWithdrawalsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(WITHDRAWAL);
         WithdrawAllObjectionsResponse withdrawal = withdrawalWithStatus(
                 WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
-        doReturn(withdrawal).when(processor).getWithdrawalDetails(message);
+        doReturn(withdrawal).when(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
         doNothing().when(processor).updateWithdrawalStatus(
                 message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         doThrow(new ChipsSubmissionException("forbidden", 403))

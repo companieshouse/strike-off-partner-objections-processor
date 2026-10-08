@@ -73,7 +73,7 @@ class AbstractObjectionsEventsProcessorTest {
         when(handler.getObjection(OBJECTION_URI)).thenReturn(getObjection);
         when(getObjection.execute()).thenReturn(new ApiResponse<>(200, null, objection));
 
-        BaseObjectionResponse result = processor.getObjectionDetails(message);
+        BaseObjectionResponse result = processor.getObjectionDetails(message, ProcessorLogContext.empty());
 
         assertSame(objection, result);
         verify(handler).getObjection(OBJECTION_URI);
@@ -86,8 +86,9 @@ class AbstractObjectionsEventsProcessorTest {
         when(handler.getObjection(OBJECTION_URI)).thenReturn(getObjection);
         when(getObjection.execute()).thenThrow(cause);
 
+        ProcessorLogContext logContext = ProcessorLogContext.empty();
         RuntimeException exception =
-                assertThrows(RuntimeException.class, () -> processor.getObjectionDetails(message));
+                assertThrows(RuntimeException.class, () -> processor.getObjectionDetails(message, logContext));
 
         assertEquals("Retryable error for eventId=" + EVENT_ID, exception.getMessage());
         assertSame(cause, exception.getCause());

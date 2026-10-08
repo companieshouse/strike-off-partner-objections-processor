@@ -11,18 +11,29 @@ import org.springframework.kafka.retrytopic.RetryTopicHeaders;
 import org.springframework.kafka.retrytopic.SameIntervalTopicReuseStrategy;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+
+import java.util.function.Consumer;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
 
 /**
  * Kafka consumer for strike-off partner objections events.
+ *
+ * <p>This component listens to the configured incoming and processed-outcome topics,
+ * logs message metadata, and delegates processing to {@link ProcessorDispatcher}.
+ *
+ * <p>Retry behaviour is managed by {@link RetryableTopic}. Exceptions of type
+ * {@link NonRetryableErrorException} are excluded from retries and routed to the
+ * configured error topic.
  */
 @Component
 public class StrikeOffPartnerObjectionsKafkaConsumer {
@@ -61,16 +72,18 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         if (event != null) {
             logContext = logContext.withIncomingEvent(event);
         }
-        ProcessorLogContext eventContext = logContext;
-        logAndDispatchEvent(attemptNumber, eventContext, () -> {
+        logAndDispatchEvent(attemptNumber, logContext, attemptContext -> {
             if (event == null) {
                 throw new NonRetryableErrorException("Missing StrikeOffPartnerObjections payload");
             }
-            processorDispatcher.dispatch(event, eventContext);
+            processorDispatcher.dispatch(event, attemptContext);
         });
     }
 
-    // This topic is populated once CHIPS has completed processing the objection or withdrawal.
+    /**
+     * Consumes outcomes published after CHIPS has completed processing an objection or withdrawal,
+     * then makes those outcomes available for downstream processing.
+     */
     @RetryableTopic(
             attempts = "${kafka.max-attempts}",
             backOff = @BackOff(delayString = "${kafka.backoff-delay}"),
@@ -95,19 +108,20 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         if (event != null) {
             logContext = logContext.withProcessedEvent(event);
         }
-        ProcessorLogContext eventContext = logContext;
-        logAndDispatchEvent(attemptNumber, eventContext, () -> {
+        logAndDispatchEvent(attemptNumber, logContext, attemptContext -> {
             if (event == null) {
                 throw new NonRetryableErrorException("Missing StrikeOffPartnerObjectionsProcessed payload");
             }
             LOG.info("Processed outcome received",
-                    eventContext.withOperation(ProcessorLogContext.PROCESSED_OUTCOME_RECEIVED).toLogMap());
-            processorDispatcher.dispatch(event, eventContext);
+                    attemptContext.withOperation(ProcessorLogContext.PROCESSED_OUTCOME_RECEIVED).toLogMap());
+            processorDispatcher.dispatch(event, attemptContext);
         });
     }
 
     private void logAndDispatchEvent(
-            Integer attemptNumber, ProcessorLogContext logContext, Runnable dispatchAction) {
+            Integer attemptNumber,
+            ProcessorLogContext logContext,
+            Consumer<ProcessorLogContext> dispatchAction) {
         int deliveryAttempt = attemptNumber == null ? 1 : attemptNumber;
         int retryCount = Math.max(deliveryAttempt - 1, 0);
         ProcessorLogContext attemptContext = logContext.withRetry(retryCount, null);
@@ -117,7 +131,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         try {
             LOG.info("Message processing started",
                     attemptContext.withOperation(ProcessorLogContext.PROCESSING_STARTED).toLogMap());
-            dispatchAction.run();
+            dispatchAction.accept(attemptContext);
             LOG.info("Message processing completed",
                     attemptContext.withOperation(ProcessorLogContext.PROCESSING_COMPLETED).toLogMap());
         } catch (DuplicateRecordException exception) {
@@ -134,10 +148,16 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
 
     private void logProcessingFailure(
             Exception exception, ProcessorLogContext logContext, int deliveryAttempt, int retryCount) {
-        String errorType = exception.getClass().getSimpleName();
+        ApiFailureDetails apiFailure = findApiFailure(exception);
+        String errorType = apiFailure == null
+                ? exception.getClass().getSimpleName()
+                : apiFailure.exceptionType();
         ProcessorLogContext failureContext = logContext
                 .withRetry(retryCount, errorType)
                 .withErrorType(errorType);
+        if (apiFailure != null) {
+            failureContext = failureContext.withStatus(String.valueOf(apiFailure.statusCode()));
+        }
         boolean terminalFailure = exception instanceof NonRetryableErrorException
                 || deliveryAttempt >= maxAttempts;
 
@@ -148,6 +168,23 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
         }
         LOG.info("Message processing will be retried",
                 failureContext.withOperation(ProcessorLogContext.RETRY).toLogMap());
+    }
+
+    private static ApiFailureDetails findApiFailure(Throwable failure) {
+        Throwable cause = failure;
+        while (cause != null) {
+            if (cause instanceof ApiErrorResponseException apiException) {
+                return new ApiFailureDetails(apiException.getStatusCode(), cause.getClass().getSimpleName());
+            }
+            if (cause instanceof ChipsSubmissionException chipsException) {
+                return new ApiFailureDetails(chipsException.getStatusCode(), cause.getClass().getSimpleName());
+            }
+            cause = cause.getCause();
+        }
+        return null;
+    }
+
+    private record ApiFailureDetails(int statusCode, String exceptionType) {
     }
 
 }
