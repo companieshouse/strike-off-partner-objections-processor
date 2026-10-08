@@ -117,16 +117,16 @@ class ProcessedObjectionsProcessorTest {
     }
 
     @Test
-    void process_objectionNotFound_throwsDuplicateWithoutUpdatingStatus() {
+    void process_objectionNotFound_rethrowsInvalidMessageWithoutUpdatingStatus() {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
-        doThrow(new InvalidStrikeOffMessageException(
-                "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID))
-                .when(processor).getObjectionDetails(message);
+        InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
+                "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID);
+        doThrow(notFoundException).when(processor).getObjectionDetails(message);
 
-        DuplicateRecordException exception =
-                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
+        InvalidStrikeOffMessageException exception =
+                assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
 
-        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
+        assertEquals(notFoundException, exception);
         verify(processor, never()).updateObjectionStatus(
                 eq(message), any(UpdateObjectionStatusRequest.class));
     }

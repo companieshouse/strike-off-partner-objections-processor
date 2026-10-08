@@ -1,4 +1,4 @@
-package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.deserialization;
+package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
