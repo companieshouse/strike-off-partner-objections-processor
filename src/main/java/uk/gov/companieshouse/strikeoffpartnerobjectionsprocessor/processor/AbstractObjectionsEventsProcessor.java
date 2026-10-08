@@ -12,6 +12,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.Processor
 import java.util.function.Function;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTIONS;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTION_RESOURCE_KIND;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.STATUS;
 
 /**
@@ -46,14 +47,13 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         String uri = buildResourceUri(message, OBJECTIONS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_GET_OBJECTION_REQUEST)
-                .withResource("objection", uri);
+                .withResource(OBJECTION_RESOURCE_KIND, uri);
         LOG.info("Requesting objection details from internal API", requestContext.toLogMap());
         BaseObjectionResponse response = getObjectionDetails(message);
         LOG.info("Received objection details from internal API",
                 requestContext.withOperation(ProcessorLogContext.INTERNAL_API_GET_OBJECTION_RESPONSE)
                         .withObjectionId(response.getObjectionId())
-                        .withStatus(response.getProcessingStatus() == null
-                                ? null : response.getProcessingStatus().getValue())
+                        .withStatus(response.getProcessingStatus().getValue())
                         .toLogMap());
         return response;
     }
@@ -69,7 +69,7 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_OBJECTION_REQUEST)
-                .withResource("objection", uri)
+                .withResource(OBJECTION_RESOURCE_KIND, uri)
                 .withStatus(String.valueOf(status));
         LOG.info("Updating objection status through internal API", requestContext.toLogMap());
         updateObjectionStatus(message, status);
@@ -95,7 +95,7 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_OBJECTION_REQUEST)
-                .withResource("objection", uri)
+                .withResource(OBJECTION_RESOURCE_KIND, uri)
                 .withStatus(String.valueOf(request.getProcessingStatus()));
         LOG.info("Updating objection status through internal API", requestContext.toLogMap());
         updateObjectionStatus(message, request);

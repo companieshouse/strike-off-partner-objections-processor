@@ -21,6 +21,8 @@ import java.util.List;
  */
 @Component
 public class ProcessorDispatcher {
+    private static final String NO_PROCESSOR_MESSAGE_PREFIX = "No processor for ";
+
     private final List<AbstractEventsProcessor<StrikeOffPartnerObjections>> processors;
     private final List<AbstractEventsProcessor<StrikeOffPartnerObjectionsProcessed>> processedEventsProcessors;
 
@@ -35,7 +37,8 @@ public class ProcessorDispatcher {
         processors.stream()
                 .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
-                .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
+                .orElseThrow(() -> new InvalidStrikeOffMessageException(
+                        NO_PROCESSOR_MESSAGE_PREFIX + message.getEventType()))
                 .process(message);
     }
 
@@ -43,7 +46,8 @@ public class ProcessorDispatcher {
         processors.stream()
                 .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
-                .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
+                .orElseThrow(() -> new InvalidStrikeOffMessageException(
+                        NO_PROCESSOR_MESSAGE_PREFIX + message.getEventType()))
                 .process(message, logContext);
     }
 
@@ -51,7 +55,8 @@ public class ProcessorDispatcher {
         processedEventsProcessors.stream()
                 .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
-                .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
+                .orElseThrow(() -> new InvalidStrikeOffMessageException(
+                        NO_PROCESSOR_MESSAGE_PREFIX + message.getEventType()))
                 .process(message);
     }
 
@@ -59,7 +64,8 @@ public class ProcessorDispatcher {
         processedEventsProcessors.stream()
                 .filter(processor -> processor.eventTypeSupported(message))
                 .findFirst()
-                .orElseThrow(() -> new InvalidStrikeOffMessageException("No processor for " + message.getEventType()))
+                .orElseThrow(() -> new InvalidStrikeOffMessageException(
+                        NO_PROCESSOR_MESSAGE_PREFIX + message.getEventType()))
                 .process(message, logContext);
     }
 

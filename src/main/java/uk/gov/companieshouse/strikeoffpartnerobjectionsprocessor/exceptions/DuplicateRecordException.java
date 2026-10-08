@@ -3,7 +3,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 public class DuplicateRecordException extends RuntimeException {
-    private final ProcessorLogContext logContext;
+    private final transient ProcessorLogContext logContext;
 
     public DuplicateRecordException(String message) {
         this(message, null, null);

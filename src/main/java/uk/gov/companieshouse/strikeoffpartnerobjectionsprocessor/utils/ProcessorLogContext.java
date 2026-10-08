@@ -42,12 +42,12 @@ public final class ProcessorLogContext {
         return new ProcessorLogContext(new DataMap.Builder().build());
     }
 
-    public static ProcessorLogContext fromRecord(ConsumerRecord<String, ?> record) {
+    public static ProcessorLogContext fromRecord(ConsumerRecord<String, ?> consumerRecord) {
         DataMap dataMap = new DataMap.Builder()
-                .topic(record.topic())
-                .partition(record.partition())
-                .offset(record.offset())
-                .kafkaMessageKey(record.key())
+                .topic(consumerRecord.topic())
+                .partition(consumerRecord.partition())
+                .offset(consumerRecord.offset())
+                .kafkaMessageKey(consumerRecord.key())
                 .build();
         return new ProcessorLogContext(dataMap);
     }

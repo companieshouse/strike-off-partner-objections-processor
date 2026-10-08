@@ -12,6 +12,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.Processor
 import java.util.function.Function;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWALS;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_RESOURCE_KIND;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_STATUS;
 
 /**
@@ -46,14 +47,13 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         String uri = buildResourceUri(message, WITHDRAWALS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_GET_WITHDRAWAL_REQUEST)
-                .withResource("withdrawal", uri);
+                .withResource(WITHDRAWAL_RESOURCE_KIND, uri);
         LOG.info("Requesting withdrawal details from internal API", requestContext.toLogMap());
         WithdrawAllObjectionsResponse response = getWithdrawalDetails(message);
         LOG.info("Received withdrawal details from internal API",
                 requestContext.withOperation(ProcessorLogContext.INTERNAL_API_GET_WITHDRAWAL_RESPONSE)
                         .withWithdrawalId(response.getWithdrawalId())
-                        .withStatus(response.getProcessingStatus() == null
-                                ? null : response.getProcessingStatus().getValue())
+                        .withStatus(response.getProcessingStatus().getValue())
                         .toLogMap());
         return response;
     }
@@ -69,7 +69,7 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_WITHDRAWAL_REQUEST)
-                .withResource("withdrawal", uri)
+                .withResource(WITHDRAWAL_RESOURCE_KIND, uri)
                 .withStatus(String.valueOf(status));
         LOG.info("Updating withdrawal status through internal API", requestContext.toLogMap());
         updateWithdrawalStatus(message, status);
@@ -95,7 +95,7 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
         ProcessorLogContext requestContext = logContext
                 .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_WITHDRAWAL_REQUEST)
-                .withResource("withdrawal", uri)
+                .withResource(WITHDRAWAL_RESOURCE_KIND, uri)
                 .withStatus(String.valueOf(request.getProcessingStatus()));
         LOG.info("Updating withdrawal status through internal API", requestContext.toLogMap());
         updateWithdrawalStatus(message, request);
