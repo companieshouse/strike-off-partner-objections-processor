@@ -7,7 +7,6 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.common.serialization.Deserializer;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 
-import java.io.IOException;
 
 /**
  * Custom deserializer for StrikeOffPartnerObjectionsProcessed using a specific datum reader.
