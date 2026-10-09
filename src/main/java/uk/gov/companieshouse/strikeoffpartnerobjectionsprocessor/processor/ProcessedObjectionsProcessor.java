@@ -46,7 +46,7 @@ public class ProcessedObjectionsProcessor
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
-        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
+        LOG.info("Objection details fetched for: objectionId=" + objection.getObjectionId());
 
         // Update status and carry outcome fields through to the PATCH request.
         SuccessFailureIndicator successFailureIndicator = message.getSuccessFailureIndicator();
