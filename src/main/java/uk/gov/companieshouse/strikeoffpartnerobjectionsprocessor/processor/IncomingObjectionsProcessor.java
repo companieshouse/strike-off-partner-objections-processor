@@ -52,10 +52,11 @@ public class IncomingObjectionsProcessor
 
         LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
 
+        submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient);
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
-        submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient);
+
     }
 
     @Override
