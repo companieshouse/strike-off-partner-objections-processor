@@ -61,11 +61,12 @@ public class IncomingWithdrawalsProcessor
                     + withdrawalDetails.getProcessingStatus().getValue()
                     + ", expected=WITHDRAWAL_REQUESTED for withdrawalId=" + withdrawalDetails.getWithdrawalId());
         }
-
+        LOG.info("Submitting withdrawal details to CHIPS for processing: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        submitToChips(withdrawalDetails, message, chipsPartnerObjectionsSubmissionClient);
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
         LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
-        submitToChips(withdrawalDetails, message, chipsPartnerObjectionsSubmissionClient);
+
     }
 
     @Override
