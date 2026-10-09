@@ -14,6 +14,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,7 +60,7 @@ class AbstractEventsProcessorTest {
             }
 
             @Override
-            protected void doProcess(SpecificRecordBase message) {
+            protected void doProcess(SpecificRecordBase message, ProcessorLogContext logContext) {
                 processed.set(true);
             }
         };

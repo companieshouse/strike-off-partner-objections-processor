@@ -7,10 +7,12 @@ import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import java.util.function.Function;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWALS;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_RESOURCE_KIND;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_STATUS;
 
 /**
@@ -28,26 +30,48 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         super(internalApiClient, eventIdGetter, companyNumberGetter, strikeOffEventIdGetter);
     }
 
-    protected final WithdrawAllObjectionsResponse getWithdrawalDetails(T message) {
+    protected final WithdrawAllObjectionsResponse getWithdrawalDetails(T message, ProcessorLogContext logContext) {
         String uri = buildResourceUri(message, WITHDRAWALS);
+        ProcessorLogContext requestContext = logContext
+                .withOperation(ProcessorLogContext.INTERNAL_API_GET_WITHDRAWAL_REQUEST)
+                .withResource(WITHDRAWAL_RESOURCE_KIND, uri);
+        LOG.info("Requesting withdrawal details from internal API", requestContext.toLogMap());
+        WithdrawAllObjectionsResponse response;
         try {
-            var response = internalApiClient
+            var apiResponse = internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .getAllWithdrawals(uri)
                     .execute();
-            LOG.info("Fetched withdrawal for withdrawalId=" + response.getData().getWithdrawalId()
-                    + ", status=" + response.getStatusCode());
-            return response.getData();
+            response = apiResponse.getData();
         } catch (Exception exception) {
-            LOG.info("Failed to get withdrawal - api url: " + uri);
             throw mapApiException(message, exception);
         }
+        LOG.info("Received withdrawal details from internal API",
+                requestContext.withOperation(ProcessorLogContext.INTERNAL_API_GET_WITHDRAWAL_RESPONSE)
+                        .withWithdrawalId(response.getWithdrawalId())
+                        .withStatus(response.getProcessingStatus().getValue())
+                        .toLogMap());
+        return response;
     }
 
     protected final void updateWithdrawalStatus(T message, WithdrawalProcessingStatus status) {
         UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
         request.setProcessingStatus(status);
         updateWithdrawalStatus(message, request);
+    }
+
+    protected final void updateWithdrawalStatus(
+            T message, WithdrawalProcessingStatus status, ProcessorLogContext logContext) {
+        String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
+        ProcessorLogContext requestContext = logContext
+                .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_WITHDRAWAL_REQUEST)
+                .withResource(WITHDRAWAL_RESOURCE_KIND, uri)
+                .withStatus(String.valueOf(status));
+        LOG.info("Updating withdrawal status through internal API", requestContext.toLogMap());
+        updateWithdrawalStatus(message, status);
+        LOG.info("Withdrawal status update completed",
+                requestContext.withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_WITHDRAWAL_RESPONSE)
+                        .toLogMap());
     }
 
     protected final void updateWithdrawalStatus(T message, UpdateWithdrawalStatusRequest request) {
@@ -57,24 +81,35 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
                     .privateStrikeOffPartnerObjectionsResourceHandler()
                     .updateWithdrawalStatus(uri, request)
                     .execute();
-            LOG.info("Successfully updated withdrawal status to " + request.getProcessingStatus()
-                    + " for eventId=" + getEventId(message));
         } catch (Exception exception) {
-            LOG.info("Failed to update withdrawal status using api url: " + uri);
             throw mapApiException(message, exception);
         }
+    }
+
+    protected final void updateWithdrawalStatus(
+            T message, UpdateWithdrawalStatusRequest request, ProcessorLogContext logContext) {
+        String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
+        ProcessorLogContext requestContext = logContext
+                .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_WITHDRAWAL_REQUEST)
+                .withResource(WITHDRAWAL_RESOURCE_KIND, uri)
+                .withStatus(String.valueOf(request.getProcessingStatus()));
+        LOG.info("Updating withdrawal status through internal API", requestContext.toLogMap());
+        updateWithdrawalStatus(message, request);
+        LOG.info("Withdrawal status update completed",
+                requestContext.withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_WITHDRAWAL_RESPONSE)
+                        .toLogMap());
     }
 
     protected final void submitToChips(
             WithdrawAllObjectionsResponse response,
             T message,
-            ChipsPartnerObjectionsSubmissionClient submissionClient) {
+            ChipsPartnerObjectionsSubmissionClient submissionClient,
+            ProcessorLogContext logContext) {
         try {
             StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
-            submissionClient.submitForWithdrawals(response, objectionMessage);
-            LOG.info("Submitted " + objectionMessage.getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
+            submissionClient.submitForWithdrawals(
+                    response, objectionMessage, logContext.withWithdrawalId(response.getWithdrawalId()));
         } catch (Exception exception) {
-            LOG.info("Failed to submit " + ((StrikeOffPartnerObjections) message).getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
             throw mapApiException(message, exception);
         }
     }

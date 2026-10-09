@@ -11,6 +11,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import java.util.function.Function;
 
@@ -47,18 +48,25 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
     }
 
     public final void process(T message) {
+        process(message, ProcessorLogContext.empty());
+    }
+
+    public final void process(T message, ProcessorLogContext logContext) {
+        LOG.debug("Validating event", logContext.withOperation(ProcessorLogContext.VALIDATION_STARTED).toLogMap());
         validate(message);
+        LOG.debug("Event validation completed",
+                logContext.withOperation(ProcessorLogContext.VALIDATION_COMPLETED).toLogMap());
         if (!eventTypeSupported(message)) {
             throw new InvalidStrikeOffMessageException("unsupported event type");
         }
-        doProcess(message);
+        doProcess(message, logContext);
     }
 
     protected abstract void validate(T message);
 
     protected abstract boolean eventTypeSupported(T message);
 
-    protected abstract void doProcess(T message) throws DuplicateRecordException;
+    protected abstract void doProcess(T message, ProcessorLogContext logContext) throws DuplicateRecordException;
 
     protected final String buildResourceUri(T message, String resourceSegment) {
         return String.format("/company/%s/%s/%s",
@@ -144,11 +152,9 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
         if (status >= 400 && status < 500 && status != TOO_MANY_REQUESTS_STATUS) {
-            LOG.info("Non-retryable API call outcome: status=" + status + ", eventId=" + eventId);
             return new InvalidStrikeOffMessageException(
                     "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
         }
-        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
         return new RuntimeException(
                 "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
     }

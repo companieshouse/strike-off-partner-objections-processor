@@ -12,6 +12,7 @@ import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -65,7 +66,7 @@ class ProcessedWithdrawalsProcessorTest {
         ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
                 ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
 
-        verify(processor).getWithdrawalDetails(message);
+        verify(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
         verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED,
                 requestCaptor.getValue().getProcessingStatus());
@@ -84,7 +85,7 @@ class ProcessedWithdrawalsProcessorTest {
         ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
                 ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
 
-        verify(processor).getWithdrawalDetails(message);
+        verify(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
         verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED,
                 requestCaptor.getValue().getProcessingStatus());
@@ -98,7 +99,8 @@ class ProcessedWithdrawalsProcessorTest {
     void process_terminalWithdrawal_throwsDuplicateWithoutUpdatingStatus(
             WithdrawalProcessingStatus terminalStatus) {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
-        doReturn(withdrawalWithStatus(terminalStatus)).when(processor).getWithdrawalDetails(message);
+        doReturn(withdrawalWithStatus(terminalStatus)).when(processor)
+                .getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
 
         DuplicateRecordException exception =
                 assertThrows(DuplicateRecordException.class, () -> processor.process(message));
@@ -115,7 +117,8 @@ class ProcessedWithdrawalsProcessorTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
         InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
                 "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID);
-        doThrow(notFoundException).when(processor).getWithdrawalDetails(message);
+        doThrow(notFoundException).when(processor)
+                .getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
 
         InvalidStrikeOffMessageException exception =
                 assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
@@ -127,7 +130,7 @@ class ProcessedWithdrawalsProcessorTest {
 
     private void stubProcessingWithdrawal(StrikeOffPartnerObjectionsProcessed message) {
         doReturn(withdrawalWithStatus(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING))
-                .when(processor).getWithdrawalDetails(message);
+                .when(processor).getWithdrawalDetails(eq(message), any(ProcessorLogContext.class));
     }
 
     private static WithdrawAllObjectionsResponse withdrawalWithStatus(

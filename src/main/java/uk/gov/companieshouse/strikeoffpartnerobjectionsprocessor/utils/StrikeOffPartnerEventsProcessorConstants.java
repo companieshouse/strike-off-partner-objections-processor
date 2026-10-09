@@ -16,6 +16,8 @@ public final class StrikeOffPartnerEventsProcessorConstants {
     public static final String WITHDRAWAL_STATUS = "withdrawal-status";
     public static final String STATUS = "status";
     public static final String OBJECTIONS = "strike-off-partner-objections";
+    public static final String OBJECTION_RESOURCE_KIND = "objection";
+    public static final String WITHDRAWAL_RESOURCE_KIND = "withdrawal";
     public static final String INTERNAL_COMPANY_URI = "/internal/company/";
     public static final String CHIPS_PARTNER_OBJECTIONS_ENDPOINT = "/chipsgeneric/strike-off-partner-objections";
 

@@ -12,6 +12,7 @@ import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,7 +68,7 @@ class ProcessedObjectionsProcessorTest {
         ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
                 ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
 
-        verify(processor).getObjectionDetails(message);
+        verify(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
         verify(processor).updateObjectionStatus(
                 eq(message), requestCaptor.capture());
         assertEquals(ObjectionProcessingStatus.OBJECTION_ACCEPTED,
@@ -88,7 +89,7 @@ class ProcessedObjectionsProcessorTest {
         ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
                 ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
 
-        verify(processor).getObjectionDetails(message);
+        verify(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
         verify(processor).updateObjectionStatus(
                 eq(message), requestCaptor.capture());
         assertEquals(ObjectionProcessingStatus.OBJECTION_REJECTED,
@@ -104,7 +105,8 @@ class ProcessedObjectionsProcessorTest {
     void process_terminalObjection_throwsDuplicateWithoutUpdatingStatus(
             ObjectionProcessingStatus terminalStatus) {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
-        doReturn(objectionWithStatus(terminalStatus)).when(processor).getObjectionDetails(message);
+        doReturn(objectionWithStatus(terminalStatus)).when(processor)
+                .getObjectionDetails(eq(message), any(ProcessorLogContext.class));
 
         DuplicateRecordException exception =
                 assertThrows(DuplicateRecordException.class, () -> processor.process(message));
@@ -121,7 +123,8 @@ class ProcessedObjectionsProcessorTest {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
         InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(
                 "Non-retryable API error (status=404) for eventId=" + STRIKE_OFF_EVENT_ID);
-        doThrow(notFoundException).when(processor).getObjectionDetails(message);
+        doThrow(notFoundException).when(processor)
+                .getObjectionDetails(eq(message), any(ProcessorLogContext.class));
 
         InvalidStrikeOffMessageException exception =
                 assertThrows(InvalidStrikeOffMessageException.class, () -> processor.process(message));
@@ -133,7 +136,7 @@ class ProcessedObjectionsProcessorTest {
 
     private void stubSubmittedObjection(StrikeOffPartnerObjectionsProcessed message) {
         doReturn(objectionWithStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED))
-                .when(processor).getObjectionDetails(message);
+                .when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
     }
 
     private static BaseObjectionResponse objectionWithStatus(

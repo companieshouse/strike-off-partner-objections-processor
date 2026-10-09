@@ -115,7 +115,7 @@ class IncomingKafkaIntegrationTest {
         verify(handler, timeout(5000))
                 .updateObjectionStatus(eq(OBJECTION_STATUS_URI), requestCaptor.capture());
         verify(chipsSubmissionClient, timeout(5000))
-                .submitForObjections(responseCaptor.capture(), eq(message));
+                .submitForObjections(responseCaptor.capture(), eq(message), any());
         assertEquals(ObjectionProcessingStatus.OBJECTION_PROCESSING, requestCaptor.getValue().getProcessingStatus());
     }
 
@@ -136,7 +136,7 @@ class IncomingKafkaIntegrationTest {
         verify(handler, timeout(5000)).getAllWithdrawals(WITHDRAWAL_URI);
         verify(handler, timeout(5000))
                 .updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), requestCaptor.capture());
-        verify(chipsSubmissionClient, timeout(5000)).submitForWithdrawals(any(), eq(message));
+        verify(chipsSubmissionClient, timeout(5000)).submitForWithdrawals(any(), eq(message), any());
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING, requestCaptor.getValue().getProcessingStatus());
     }
 
@@ -150,7 +150,7 @@ class IncomingKafkaIntegrationTest {
 
         verify(handler).getObjection(OBJECTION_URI);
         verify(handler, never()).updateObjectionStatus(eq(OBJECTION_STATUS_URI), any(UpdateObjectionStatusRequest.class));
-        verify(chipsSubmissionClient, never()).submitForObjections(any(), eq(message));
+        verify(chipsSubmissionClient, never()).submitForObjections(any(), eq(message), any());
     }
 
     @Test
@@ -162,7 +162,7 @@ class IncomingKafkaIntegrationTest {
                 .thenReturn(updateObjectionStatus);
         when(updateObjectionStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
         doThrow(new ChipsSubmissionException("service unavailable", 503))
-                .when(chipsSubmissionClient).submitForObjections(any(), eq(message));
+                .when(chipsSubmissionClient).submitForObjections(any(), eq(message), any());
         ConsumerRecord<String, StrikeOffPartnerObjections> kafkaRecord =
                 new ConsumerRecord<>(INCOMING_TOPIC, 0, 0L, message.getEventId(), message);
 
@@ -182,7 +182,7 @@ class IncomingKafkaIntegrationTest {
                 .thenReturn(updateWithdrawalStatus);
         when(updateWithdrawalStatus.execute()).thenReturn(new ApiResponse<>(204, null, null));
         doThrow(new ChipsSubmissionException("forbidden", 403))
-                .when(chipsSubmissionClient).submitForWithdrawals(any(), eq(message));
+                .when(chipsSubmissionClient).submitForWithdrawals(any(), eq(message), any());
         ConsumerRecord<String, StrikeOffPartnerObjections> kafkaRecord =
                 new ConsumerRecord<>(INCOMING_TOPIC, 0, 0L, message.getEventId(), message);
 

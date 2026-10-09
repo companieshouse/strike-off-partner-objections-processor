@@ -8,6 +8,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 /**
  * Processor for incoming strike-off partner objection events.
@@ -35,11 +36,9 @@ public class IncomingObjectionsProcessor
     }
 
     @Override
-    protected void doProcess(StrikeOffPartnerObjections message) {
-        LOG.info("Processing objection event with ID: " + message.getEventId());
-        var objection = getObjectionDetails(message);
-
-        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
+    protected void doProcess(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
+        var objection = getObjectionDetails(message, logContext);
+        ProcessorLogContext objectionContext = logContext.withObjectionId(objection.getObjectionId());
 
         // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
@@ -47,15 +46,13 @@ public class IncomingObjectionsProcessor
                 ObjectionProcessingStatus.OBJECTION_PROCESSING.getValue())) {
             throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + message.getStrikeOffEventId()
                     + ", objectionId=" + objection.getObjectionId()
-                    + ", status=" + objection.getProcessingStatus().getValue());
+                    + ", status=" + objection.getProcessingStatus().getValue(),
+                    objectionContext.withStatus(objection.getProcessingStatus().getValue()));
         }
 
-        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
-
         // Update status to objection-processing
-        updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
-        LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
-        submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient);
+        updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING, objectionContext);
+        submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient, objectionContext);
     }
 
     @Override
