@@ -50,9 +50,10 @@ public class IncomingObjectionsProcessor
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
-        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
+        LOG.info("Objection details fetched and submitting to chips for processing: objectionId=" + objection.getObjectionId());
 
         submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient);
+
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
