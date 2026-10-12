@@ -13,7 +13,7 @@ import uk.gov.companieshouse.logging.LoggerFactory;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants;
 
 @Component
@@ -45,76 +45,47 @@ public class ChipsPartnerObjectionsSubmissionClient {
     }
 
     public void submitForObjections(BaseObjectionResponse baseResponse, StrikeOffPartnerObjections message) {
-        submitForObjections(baseResponse, message, ProcessorLogContext.empty()
-                .withCompanyNumber(baseResponse.getCompanyNumber())
-                .withObjectionId(baseResponse.getObjectionId())
-                .withEventType("objection"));
-    }
-
-    public void submitForObjections(
-            BaseObjectionResponse baseResponse,
-            StrikeOffPartnerObjections message,
-            ProcessorLogContext logContext) {
         ChipsPartnerObjectionsSubmissionRequest request = requestMapper.objectionRequest(baseResponse, message);
-        submit(request, logContext);
+        submit(request);
     }
 
     public void submitForWithdrawals(WithdrawAllObjectionsResponse baseResponse, StrikeOffPartnerObjections message) {
-        submitForWithdrawals(baseResponse, message, ProcessorLogContext.empty()
-                .withCompanyNumber(baseResponse.getCompanyNumber())
-                .withWithdrawalId(baseResponse.getWithdrawalId())
-                .withEventType("withdrawal"));
-    }
-
-    public void submitForWithdrawals(
-            WithdrawAllObjectionsResponse baseResponse,
-            StrikeOffPartnerObjections message,
-            ProcessorLogContext logContext) {
         ChipsPartnerObjectionsSubmissionRequest request = requestMapper.withdrawalRequest(baseResponse, message);
-        submit(request, logContext);
+        submit(request);
     }
 
     public void submit(ChipsPartnerObjectionsSubmissionRequest request) {
-        ProcessorLogContext logContext = ProcessorLogContext.empty()
-                .withCompanyNumber(request.company_number())
-                .withEventType(request.kind())
-                .withObjectionId("Objection".equals(request.kind()) ? request.strike_off_event_id() : null)
-                .withWithdrawalId("Withdrawal".equals(request.kind()) ? request.strike_off_event_id() : null);
-        submit(request, logContext);
-    }
-
-    public void submit(ChipsPartnerObjectionsSubmissionRequest request, ProcessorLogContext logContext) {
         String endpoint = buildEndpointUrl();
         ResponseEntity<String> response;
 
-        ProcessorLogContext requestContext = logContext.withOperation(ProcessorLogContext.CHIPS_REQUEST);
-        LOG.info("Submitting objection or withdrawal to CHIPS", requestContext.toLogMap());
+        LOG.info("Submitting objection or withdrawal to CHIPS",
+                DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_REQUEST).build().getLogMap());
         try {
             HttpEntity<ChipsPartnerObjectionsSubmissionRequest> httpEntity = createHttpEntity(request);
             response = restTemplate.postForEntity(endpoint, httpEntity, String.class);
         } catch (HttpStatusCodeException exception) {
             LOG.info("CHIPS response received",
-                    logContext.withOperation(ProcessorLogContext.CHIPS_RESPONSE)
-                            .withStatus(String.valueOf(exception.getStatusCode().value()))
-                            .withErrorType(exception.getClass().getSimpleName())
-                            .toLogMap());
+                    DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE)
+                            .status(String.valueOf(exception.getStatusCode().value()))
+                            .errorType(exception.getClass().getSimpleName())
+                            .build().getLogMap());
             if (exception.getStatusCode().value() == UNAUTHORIZED_STATUS) {
                 throw new ChipsSubmissionException("CHIPS authentication failed - invalid or missing API key", exception.getStatusCode().value(), exception);
             }
             throw new ChipsSubmissionException("CHIPS submission failed", exception.getStatusCode().value(), exception);
         } catch (RestClientException exception) {
             LOG.info("CHIPS submission failed before receiving a response",
-                    logContext.withOperation(ProcessorLogContext.CHIPS_RESPONSE)
-                            .withErrorType(exception.getClass().getSimpleName())
-                            .toLogMap());
+                    DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE)
+                            .errorType(exception.getClass().getSimpleName())
+                            .build().getLogMap());
             throw new ChipsSubmissionException("CHIPS submission failed due to transport error", TRANSPORT_ERROR_STATUS, exception);
         }
 
         int statusCode = response.getStatusCode().value();
         LOG.info("CHIPS response received",
-                logContext.withOperation(ProcessorLogContext.CHIPS_RESPONSE)
-                        .withStatus(String.valueOf(statusCode))
-                        .toLogMap());
+                DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE)
+                        .status(String.valueOf(statusCode))
+                        .build().getLogMap());
         if (statusCode == UNAUTHORIZED_STATUS) {
             throw new ChipsSubmissionException("CHIPS authentication failed - invalid or missing API key", statusCode);
         }

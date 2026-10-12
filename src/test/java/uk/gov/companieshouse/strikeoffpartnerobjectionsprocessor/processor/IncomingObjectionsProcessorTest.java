@@ -10,13 +10,11 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPar
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -54,13 +52,13 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
+        doReturn(objection).when(processor).getObjectionDetails(message);
         doNothing().when(processor).updateObjectionStatus(
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
 
         assertDoesNotThrow(() -> processor.process(message));
 
-        verify(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
+        verify(processor).getObjectionDetails(message);
         verify(processor).updateObjectionStatus(
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
     }
@@ -70,7 +68,7 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_PROCESSING);
-        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
+        doReturn(objection).when(processor).getObjectionDetails(message);
 
         DuplicateRecordException exception =
                 assertThrows(DuplicateRecordException.class, () -> processor.process(message));
@@ -88,19 +86,19 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_SUBMITTED);
-        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
+        doReturn(objection).when(processor).getObjectionDetails(message);
         doNothing().when(processor).updateObjectionStatus(
                 message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
         doThrow(new ChipsSubmissionException("bad request", 400))
                 .when(chipsPartnerObjectionsSubmissionClient)
-                .submitForObjections(eq(objection), eq(message), any());
+                .submitForObjections(objection, message);
 
         InvalidStrikeOffMessageException exception = assertThrows(
                 InvalidStrikeOffMessageException.class,
                 () -> processor.process(message));
 
         assertTrue(exception.getMessage().contains("Non-retryable API error (status=400)"));
-        verify(chipsPartnerObjectionsSubmissionClient).submitForObjections(eq(objection), eq(message), any());
+        verify(chipsPartnerObjectionsSubmissionClient).submitForObjections(objection, message);
     }
 
     @Test
@@ -108,11 +106,11 @@ class IncomingObjectionsProcessorTest {
         StrikeOffPartnerObjections message = incomingMessage(OBJECTION);
         BaseObjectionResponse objection = objectionWithStatus(
                 ObjectionProcessingStatus.OBJECTION_PROCESSING);
-        doReturn(objection).when(processor).getObjectionDetails(eq(message), any(ProcessorLogContext.class));
+        doReturn(objection).when(processor).getObjectionDetails(message);
 
         assertThrows(DuplicateRecordException.class, () -> processor.process(message));
 
-        verify(chipsPartnerObjectionsSubmissionClient, never()).submitForObjections(any(), any(), any());
+        verify(chipsPartnerObjectionsSubmissionClient, never()).submitForObjections(any(), any());
     }
 
     private static BaseObjectionResponse objectionWithStatus(

@@ -1,4 +1,4 @@
-package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers;
+package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.logging;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -15,7 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
@@ -24,18 +24,23 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSub
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -45,9 +50,11 @@ import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureI
 import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 
 @ExtendWith(MockitoExtension.class)
-class StrikeOffPartnerObjectionsKafkaConsumerTest {
+class StructuredLoggingKafkaListenerAspectTest {
 
     private static final String SENSITIVE_FAILURE_TEXT = "sensitive failure message";
+    private static final String OBJECTION_ID = "objection-001";
+    private static final String WITHDRAWAL_ID = "withdrawal-001";
 
     @Mock
     private ProcessorDispatcher processorDispatcher;
@@ -60,7 +67,9 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(consumer, "maxAttempts", 3);
+        AspectJProxyFactory proxyFactory = new AspectJProxyFactory(consumer);
+        proxyFactory.addAspect(new StructuredLoggingKafkaListenerAspect(3));
+        consumer = proxyFactory.getProxy();
         structuredLogger = (Logger) LoggerFactory.getLogger(
                 uk.gov.companieshouse.logging.StructuredLogger.class);
         logAppender = new ListAppender<>();
@@ -72,6 +81,8 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     @AfterEach
     void tearDown() {
         structuredLogger.detachAppender(logAppender);
+        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        DataMapHolder.clear();
     }
 
     @Test
@@ -80,7 +91,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord);
 
-        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(objectionRecord.value());
     }
 
     @Test
@@ -89,14 +100,14 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         consumer.consumeStrikeOffObjectionsMessage(null, objectionRecord);
 
-        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(objectionRecord.value());
     }
 
     @Test
     void consumeMessage_dispatcherThrows_rethrowsException() {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         doThrow(new RuntimeException("processing failed"))
-                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(objectionRecord.value());
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
@@ -108,20 +119,18 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         StrikeOffPartnerObjections event = objectionRecord.value();
         doThrow(new RuntimeException(SENSITIVE_FAILURE_TEXT,
                 new ChipsSubmissionException(SENSITIVE_FAILURE_TEXT, 503)))
-                .when(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(event);
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(2, objectionRecord));
 
-        Map<?, ?> retryData = logDataForOperation(ProcessorLogContext.RETRY);
+        Map<?, ?> retryData = logDataForOperation(DataMapHolder.RETRY);
         assertEquals(1, retryData.get("retry_count"));
         assertEquals("503", retryData.get("status"));
         assertEquals("ChipsSubmissionException", retryData.get("error_type"));
         assertEquals("ChipsSubmissionException", retryData.get("retry_reason"));
 
-        var contextCaptor = org.mockito.ArgumentCaptor.forClass(ProcessorLogContext.class);
-        verify(processorDispatcher).dispatch(eq(event), contextCaptor.capture());
-        assertEquals(1, contextCaptor.getValue().toLogMap().get("retry_count"));
+        verify(processorDispatcher).dispatch(event);
         assertNoSensitiveFailureTextLogged();
     }
 
@@ -132,16 +141,14 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> processedRecord =
                 new ConsumerRecord<>("processed-topic", 0, 0L, "key", event);
         doThrow(new RuntimeException(SENSITIVE_FAILURE_TEXT))
-                .when(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(event);
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeProcessedStrikeOffObjectionsMessage(2, processedRecord));
 
-        assertEquals(1, logDataForOperation(ProcessorLogContext.PROCESSED_OUTCOME_RECEIVED)
+        assertEquals(1, logDataForOperation(DataMapHolder.PROCESSED_OUTCOME_RECEIVED)
                 .get("retry_count"));
-        var contextCaptor = org.mockito.ArgumentCaptor.forClass(ProcessorLogContext.class);
-        verify(processorDispatcher).dispatch(eq(event), contextCaptor.capture());
-        assertEquals(1, contextCaptor.getValue().toLogMap().get("retry_count"));
+        verify(processorDispatcher).dispatch(event);
         assertNoSensitiveFailureTextLogged();
     }
 
@@ -149,31 +156,36 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeMessage_exhaustedAttemptLogsTerminalFailure() {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         doThrow(new RuntimeException(SENSITIVE_FAILURE_TEXT))
-                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(objectionRecord.value());
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(3, objectionRecord));
 
-        Map<?, ?> failureData = logDataForOperation(ProcessorLogContext.PROCESSING_FAILED);
+        Map<?, ?> failureData = logDataForOperation(DataMapHolder.PROCESSING_FAILED);
         assertEquals(2, failureData.get("retry_count"));
         assertEquals("RuntimeException", failureData.get("error_type"));
         assertNoSensitiveFailureTextLogged();
     }
 
-    @Test
-    void consumeMessage_internalApiFailureLogsTypedStatusAndErrorType() {
+    @ParameterizedTest
+    @ValueSource(ints = {429, 503, 403, 404})
+    void consumeMessage_internalApiFailureLogsTypedStatusAndErrorType(int statusCode) {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         ApiErrorResponseException apiException = mock(ApiErrorResponseException.class);
-        when(apiException.getStatusCode()).thenReturn(429);
-        doThrow(new RuntimeException(SENSITIVE_FAILURE_TEXT, apiException))
+        when(apiException.getStatusCode()).thenReturn(statusCode);
+        boolean terminal = statusCode == 403 || statusCode == 404;
+        RuntimeException failure = terminal
+                ? new InvalidStrikeOffMessageException(SENSITIVE_FAILURE_TEXT, apiException)
+                : new RuntimeException(SENSITIVE_FAILURE_TEXT, apiException);
+        doThrow(failure)
                 .when(processorDispatcher)
-                .dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .dispatch(objectionRecord.value());
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(2, objectionRecord));
 
-        Map<?, ?> retryData = logDataForOperation(ProcessorLogContext.RETRY);
-        assertEquals("429", retryData.get("status"));
+        Map<?, ?> retryData = logDataForOperation(terminal ? DataMapHolder.PROCESSING_FAILED : DataMapHolder.RETRY);
+        assertEquals(String.valueOf(statusCode), retryData.get("status"));
         assertEquals("ApiErrorResponseException", retryData.get("error_type"));
         assertNoSensitiveFailureTextLogged();
     }
@@ -186,12 +198,12 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                         SENSITIVE_FAILURE_TEXT,
                         new ChipsSubmissionException(SENSITIVE_FAILURE_TEXT, statusCode)))
                 .when(processorDispatcher)
-                .dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .dispatch(objectionRecord.value());
 
         assertThrows(InvalidStrikeOffMessageException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
 
-        Map<?, ?> failureData = logDataForOperation(ProcessorLogContext.PROCESSING_FAILED);
+        Map<?, ?> failureData = logDataForOperation(DataMapHolder.PROCESSING_FAILED);
         assertEquals(String.valueOf(statusCode), failureData.get("status"));
         assertEquals("ChipsSubmissionException", failureData.get("error_type"));
         assertNoSensitiveFailureTextLogged();
@@ -202,12 +214,12 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         doThrow(new NonRetryableErrorException(SENSITIVE_FAILURE_TEXT))
                 .when(processorDispatcher)
-                .dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .dispatch(objectionRecord.value());
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
 
-        Map<?, ?> failureData = logDataForOperation(ProcessorLogContext.PROCESSING_FAILED);
+        Map<?, ?> failureData = logDataForOperation(DataMapHolder.PROCESSING_FAILED);
         assertEquals(0, failureData.get("retry_count"));
         assertEquals("NonRetryableErrorException", failureData.get("error_type"));
         assertNoSensitiveFailureTextLogged();
@@ -217,7 +229,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeMessage_dispatcherThrowsNonRetryable_rethrowsAsIs() {
         ConsumerRecord<String, StrikeOffPartnerObjections> objectionRecord = triggerObjectionEvent();
         doThrow(new NonRetryableErrorException("bad message"))
-                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(objectionRecord.value());
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, objectionRecord));
@@ -236,13 +248,13 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         doThrow(new DuplicateRecordException("Duplicate record"))
                 .when(processorDispatcher)
-                .dispatch(eq(event), any(ProcessorLogContext.class));
+                .dispatch(event);
 
         // When / Then
         assertDoesNotThrow(() ->
                 consumer.consumeStrikeOffObjectionsMessage(1, consumerRecord));
 
-        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(event);
     }
 
     @Test
@@ -252,6 +264,8 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, recordWithNullPayload));
+        assertEquals("strike-off-partner-objections-incoming",
+                logDataForOperation(DataMapHolder.PROCESSING_FAILED).get("topic"));
     }
 
     @Test
@@ -262,7 +276,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, event);
 
         assertDoesNotThrow(() -> consumer.consumeStrikeOffObjectionsMessage(1, recordWithNullEventId));
-        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(event);
     }
 
     @ParameterizedTest
@@ -272,7 +286,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         consumer.consumeProcessedStrikeOffObjectionsMessage(1, objectionRecord);
 
-        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(objectionRecord.value());
     }
 
     @ParameterizedTest
@@ -282,7 +296,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> objectionRecord = triggerProcessedObjectionEvent(wasSuccessful);
         consumer.consumeProcessedStrikeOffObjectionsMessage(null, objectionRecord);
 
-        verify(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(objectionRecord.value());
     }
 
     @ParameterizedTest
@@ -290,7 +304,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeProcessedMessage_dispatcherThrows_rethrowsException(boolean wasSuccessful) {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> objectionRecord = triggerProcessedObjectionEvent(wasSuccessful);
         doThrow(new RuntimeException("processing failed"))
-                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(objectionRecord.value());
 
         assertThrows(RuntimeException.class,
                 () -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, objectionRecord));
@@ -301,7 +315,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     void consumeProcessedMessage_dispatcherThrowsNonRetryable_rethrowsAsIs(boolean wasSuccessful) {
         ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> objectionRecord = triggerProcessedObjectionEvent(wasSuccessful);
         doThrow(new NonRetryableErrorException("bad message"))
-                .when(processorDispatcher).dispatch(eq(objectionRecord.value()), any(ProcessorLogContext.class));
+                .when(processorDispatcher).dispatch(objectionRecord.value());
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, objectionRecord));
@@ -319,13 +333,13 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         doThrow(new DuplicateRecordException("Duplicate record"))
                 .when(processorDispatcher)
-                .dispatch(eq(event), any(ProcessorLogContext.class));
+                .dispatch(event);
 
         // When / Then
         assertDoesNotThrow(() ->
                 consumer.consumeProcessedStrikeOffObjectionsMessage(1, consumerRecord));
 
-        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(event);
     }
 
     @ParameterizedTest
@@ -336,6 +350,172 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
 
         assertThrows(NonRetryableErrorException.class,
                 () -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, recordWithNullPayload));
+        assertEquals("NonRetryableErrorException",
+                logDataForOperation(DataMapHolder.PROCESSING_FAILED).get("error_type"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 3})
+    void incomingDelivery_logsLifecycleAndSharedMetadata(int attempt) {
+        StrikeOffPartnerObjections event = triggerObjectionEvent().value();
+        ConsumerRecord<String, StrikeOffPartnerObjections> message =
+                new ConsumerRecord<>("incoming-topic", 2, 15L, "message-key", event);
+        int retryCount = Math.max(attempt - 1, 0);
+        doAnswer(invocation -> {
+            assertEquals(retryCount, DataMapHolder.snapshot().build().getLogMap().get("retry_count"));
+            DataMapHolder.get().objectionId(OBJECTION_ID);
+            DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE).status("202")
+                    .resourceUri("/operation-only").errorType("operation-only").build();
+            return null;
+        }).when(processorDispatcher).dispatch(event);
+
+        consumer.consumeStrikeOffObjectionsMessage(attempt, message);
+
+        List<String> operations = List.of(DataMapHolder.KAFKA_MESSAGE_RECEIVED,
+                DataMapHolder.PROCESSING_STARTED, DataMapHolder.PROCESSING_COMPLETED);
+        assertEquals(operations, loggedOperations());
+        for (String operation : operations) {
+            Map<?, ?> data = logDataForOperation(operation);
+            assertEquals(retryCount, data.get("retry_count"));
+            assertEquals("12345678", data.get("company_number"));
+            assertEquals("strike-001", data.get("correlation_id"));
+            assertEquals("TEST_ORG", data.get("partner_organisation"));
+            assertEquals("test", data.get("source"));
+            assertEquals("incoming-topic", data.get("topic"));
+            assertEquals(2, data.get("partition"));
+            assertEquals(15L, data.get("offset"));
+            assertEquals("message-key", data.get("kafka_message_key"));
+            assertNoOperationFields(data);
+        }
+        assertEquals(OBJECTION_ID, logDataForOperation(DataMapHolder.PROCESSING_COMPLETED).get("objection_id"));
+    }
+
+    @Test
+    void processedDelivery_logsOutcomeWithoutLeakingItsStatus() {
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> message = triggerProcessedObjectionEvent(true);
+        doAnswer(invocation -> {
+            DataMapHolder.get().withdrawalId(WITHDRAWAL_ID);
+            return null;
+        }).when(processorDispatcher).dispatch(message.value());
+
+        consumer.consumeProcessedStrikeOffObjectionsMessage(3, message);
+
+        assertEquals(List.of(DataMapHolder.KAFKA_MESSAGE_RECEIVED, DataMapHolder.PROCESSING_STARTED,
+                DataMapHolder.PROCESSED_OUTCOME_RECEIVED, DataMapHolder.PROCESSING_COMPLETED), loggedOperations());
+        assertEquals("SUCCESS", logDataForOperation(DataMapHolder.PROCESSED_OUTCOME_RECEIVED).get("status"));
+        Map<?, ?> completion = logDataForOperation(DataMapHolder.PROCESSING_COMPLETED);
+        assertEquals(WITHDRAWAL_ID, completion.get("withdrawal_id"));
+        assertEquals(2, completion.get("retry_count"));
+        assertNoOperationFields(completion);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void incomingFailureRetainsEnrichedIdAndClearsContext(boolean duplicate) {
+        ConsumerRecord<String, StrikeOffPartnerObjections> message = triggerObjectionEvent();
+        doAnswer(invocation -> {
+            DataMapHolder.get().objectionId(OBJECTION_ID);
+            if (duplicate) {
+                throw new DuplicateRecordException(SENSITIVE_FAILURE_TEXT);
+            }
+            throw new InvalidStrikeOffMessageException(SENSITIVE_FAILURE_TEXT);
+        }).when(processorDispatcher).dispatch(message.value());
+
+        if (duplicate) {
+            assertDoesNotThrow(() -> consumer.consumeStrikeOffObjectionsMessage(1, message));
+        } else {
+            assertThrows(InvalidStrikeOffMessageException.class,
+                    () -> consumer.consumeStrikeOffObjectionsMessage(1, message));
+        }
+
+        String operation = duplicate ? DataMapHolder.PROCESSING_SKIPPED : DataMapHolder.PROCESSING_FAILED;
+        assertEquals(OBJECTION_ID, logDataForOperation(operation).get("objection_id"));
+        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        assertNoSensitiveFailureTextLogged();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void processedFailureRetainsEnrichedIdAndClearsContext(boolean duplicate) {
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> message = triggerProcessedObjectionEvent(false);
+        doAnswer(invocation -> {
+            DataMapHolder.get().withdrawalId(WITHDRAWAL_ID);
+            if (duplicate) {
+                throw new DuplicateRecordException(SENSITIVE_FAILURE_TEXT);
+            }
+            throw new RuntimeException(SENSITIVE_FAILURE_TEXT);
+        }).when(processorDispatcher).dispatch(message.value());
+
+        if (duplicate) {
+            assertDoesNotThrow(() -> consumer.consumeProcessedStrikeOffObjectionsMessage(3, message));
+        } else {
+            assertThrows(RuntimeException.class,
+                    () -> consumer.consumeProcessedStrikeOffObjectionsMessage(3, message));
+        }
+
+        String operation = duplicate ? DataMapHolder.PROCESSING_SKIPPED : DataMapHolder.PROCESSING_FAILED;
+        assertEquals(WITHDRAWAL_ID, logDataForOperation(operation).get("withdrawal_id"));
+        assertEquals(2, logDataForOperation(operation).get("retry_count"));
+        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        assertNoSensitiveFailureTextLogged();
+    }
+
+    @Test
+    void consecutiveDeliveriesDoNotShareMetadata() {
+        ConsumerRecord<String, StrikeOffPartnerObjections> incomingMessage = triggerObjectionEvent();
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> processedMessage =
+                triggerProcessedObjectionEvent(true);
+        doAnswer(invocation -> {
+            DataMapHolder.get().objectionId(OBJECTION_ID);
+            return null;
+        }).when(processorDispatcher).dispatch(incomingMessage.value());
+
+        consumer.consumeStrikeOffObjectionsMessage(3, incomingMessage);
+        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        logAppender.list.clear();
+        consumer.consumeProcessedStrikeOffObjectionsMessage(null, processedMessage);
+
+        Map<?, ?> receipt = logDataForOperation(DataMapHolder.KAFKA_MESSAGE_RECEIVED);
+        assertEquals(0, receipt.get("retry_count"));
+        assertNull(receipt.get("objection_id"));
+        assertNull(receipt.get("partner_organisation"));
+        assertNull(receipt.get("source"));
+        assertNoOperationFields(receipt);
+    }
+
+    @Test
+    void concurrentListenerThreadsHaveIsolatedContexts() throws Exception {
+        ConsumerRecord<String, StrikeOffPartnerObjections> incomingMessage = triggerObjectionEvent();
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> processedMessage =
+                triggerProcessedObjectionEvent(true);
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        doAnswer(invocation -> {
+            DataMapHolder.get().objectionId(OBJECTION_ID);
+            barrier.await(5, TimeUnit.SECONDS);
+            assertEquals(OBJECTION_ID, DataMapHolder.snapshot().build().getLogMap().get("objection_id"));
+            assertNull(DataMapHolder.snapshot().build().getLogMap().get("withdrawal_id"));
+            return null;
+        }).when(processorDispatcher).dispatch(incomingMessage.value());
+        doAnswer(invocation -> {
+            DataMapHolder.get().withdrawalId(WITHDRAWAL_ID);
+            barrier.await(5, TimeUnit.SECONDS);
+            assertEquals(WITHDRAWAL_ID, DataMapHolder.snapshot().build().getLogMap().get("withdrawal_id"));
+            assertNull(DataMapHolder.snapshot().build().getLogMap().get("objection_id"));
+            return null;
+        }).when(processorDispatcher).dispatch(processedMessage.value());
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var incomingResult = executor.submit(() -> {
+                consumer.consumeStrikeOffObjectionsMessage(1, incomingMessage);
+                return DataMapHolder.snapshot().build().getLogMap();
+            });
+            var processedResult = executor.submit(() -> {
+                consumer.consumeProcessedStrikeOffObjectionsMessage(1, processedMessage);
+                return DataMapHolder.snapshot().build().getLogMap();
+            });
+            assertEquals(Map.of(), incomingResult.get(10, TimeUnit.SECONDS));
+            assertEquals(Map.of(), processedResult.get(10, TimeUnit.SECONDS));
+        }
     }
 
     @ParameterizedTest
@@ -347,7 +527,7 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 new ConsumerRecord<>("strike-off-partner-objections-incoming", 0, 0L, null, event);
 
         assertDoesNotThrow(() -> consumer.consumeProcessedStrikeOffObjectionsMessage(1, recordWithNullEventId));
-        verify(processorDispatcher).dispatch(eq(event), any(ProcessorLogContext.class));
+        verify(processorDispatcher).dispatch(event);
     }
 
     private ConsumerRecord<String, StrikeOffPartnerObjections> triggerObjectionEvent() {
@@ -376,18 +556,30 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
     }
 
     private Map<?, ?> logDataForOperation(String operation) {
+        return logData().stream()
+                .filter(data -> operation.equals(data.get("operation")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No log found for operation " + operation));
+    }
+
+    private List<Map<?, ?>> logData() {
         return logAppender.list.stream()
                 .map(ILoggingEvent::getArgumentArray)
                 .filter(arguments -> arguments != null && arguments.length > 0)
                 .map(arguments -> arguments[0])
-                .filter(Map.class::isInstance)
-                .map(Map.class::cast)
-                .map(log -> log.get("data"))
-                .filter(Map.class::isInstance)
-                .map(Map.class::cast)
-                .filter(data -> operation.equals(data.get("operation")))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("No log found for operation " + operation));
+                .map(argument -> argument instanceof Map<?, ?> log ? log.get("data") : null)
+                .<Map<?, ?>>map(data -> data instanceof Map<?, ?> map ? map : Map.of())
+                .toList();
+    }
+
+    private List<String> loggedOperations() {
+        return logData().stream().map(data -> String.valueOf(data.get("operation"))).toList();
+    }
+
+    private void assertNoOperationFields(Map<?, ?> data) {
+        assertNull(data.get("status"));
+        assertNull(data.get("resource_uri"));
+        assertNull(data.get("error_type"));
     }
 
     private void assertNoSensitiveFailureTextLogged() {
@@ -395,5 +587,6 @@ class StrikeOffPartnerObjectionsKafkaConsumerTest {
                 .anyMatch(event -> event.getFormattedMessage().contains(SENSITIVE_FAILURE_TEXT)
                         || Arrays.deepToString(event.getArgumentArray()).contains(SENSITIVE_FAILURE_TEXT));
         assertFalse(sensitiveTextLogged);
+        logAppender.list.forEach(event -> assertNull(event.getThrowableProxy()));
     }
 }

@@ -9,7 +9,6 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 /**
  * Processor for processed strike-off partner objection events.
@@ -35,18 +34,15 @@ public class ProcessedObjectionsProcessor
     }
 
     @Override
-    protected void doProcess(
-            StrikeOffPartnerObjectionsProcessed message, ProcessorLogContext logContext) {
-        BaseObjectionResponse objection = getObjectionDetails(message, logContext);
-        ProcessorLogContext objectionContext = logContext.withObjectionId(objection.getObjectionId());
+    protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
+        BaseObjectionResponse objection = getObjectionDetails(message);
 
         // Idempotent check: if this has already been accepted or rejected, skip
         if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())
                 || isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_REJECTED.getValue())) {
             throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + message.getStrikeOffEventId()
                     + ", objectionId=" + objection.getObjectionId()
-                    + ", status=" + objection.getProcessingStatus().getValue(),
-                    objectionContext.withStatus(objection.getProcessingStatus().getValue()));
+                    + ", status=" + objection.getProcessingStatus().getValue());
         }
 
         // Update status and carry outcome fields through to the PATCH request.
@@ -59,7 +55,7 @@ public class ProcessedObjectionsProcessor
             request.setProcessingStatus(ObjectionProcessingStatus.OBJECTION_REJECTED);
             request.setFailureReason(message.getErrorMessage());
         }
-        updateObjectionStatus(message, request, objectionContext);
+        updateObjectionStatus(message, request);
     }
 
 

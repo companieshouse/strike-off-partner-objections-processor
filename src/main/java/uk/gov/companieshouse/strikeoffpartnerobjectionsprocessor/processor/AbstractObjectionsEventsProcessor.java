@@ -5,9 +5,10 @@ import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
+import uk.gov.companieshouse.logging.util.DataMap;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import java.util.function.Function;
 
@@ -30,12 +31,12 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         super(internalApiClient, eventIdGetter, companyNumberGetter, strikeOffEventIdGetter);
     }
 
-    protected final BaseObjectionResponse getObjectionDetails(T message, ProcessorLogContext logContext) {
+    protected final BaseObjectionResponse getObjectionDetails(T message) {
         String uri = buildResourceUri(message, OBJECTIONS);
-        ProcessorLogContext requestContext = logContext
-                .withOperation(ProcessorLogContext.INTERNAL_API_GET_OBJECTION_REQUEST)
-                .withResource(OBJECTION_RESOURCE_KIND, uri);
-        LOG.info("Requesting objection details from internal API", requestContext.toLogMap());
+        DataMap.Builder requestContext = DataMapHolder.snapshot()
+                .operation(DataMapHolder.INTERNAL_API_GET_OBJECTION_REQUEST)
+                .resourceKind(OBJECTION_RESOURCE_KIND).resourceUri(uri);
+        LOG.info("Requesting objection details from internal API", requestContext.build().getLogMap());
         BaseObjectionResponse response;
         try {
             var apiResponse = internalApiClient
@@ -46,11 +47,12 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         } catch (Exception exception) {
             throw mapApiException(message, exception);
         }
+        DataMapHolder.get().objectionId(response.getObjectionId());
         LOG.info("Received objection details from internal API",
-                requestContext.withOperation(ProcessorLogContext.INTERNAL_API_GET_OBJECTION_RESPONSE)
-                        .withObjectionId(response.getObjectionId())
-                        .withStatus(response.getProcessingStatus().getValue())
-                        .toLogMap());
+                requestContext.operation(DataMapHolder.INTERNAL_API_GET_OBJECTION_RESPONSE)
+                        .objectionId(response.getObjectionId())
+                        .status(response.getProcessingStatus().getValue())
+                        .build().getLogMap());
         return response;
     }
 
@@ -60,22 +62,13 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         updateObjectionStatus(message, request);
     }
 
-    protected final void updateObjectionStatus(
-            T message, ObjectionProcessingStatus status, ProcessorLogContext logContext) {
-        String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
-        ProcessorLogContext requestContext = logContext
-                .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_OBJECTION_REQUEST)
-                .withResource(OBJECTION_RESOURCE_KIND, uri)
-                .withStatus(String.valueOf(status));
-        LOG.info("Updating objection status through internal API", requestContext.toLogMap());
-        updateObjectionStatus(message, status);
-        LOG.info("Objection status update completed",
-                requestContext.withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_OBJECTION_RESPONSE)
-                        .toLogMap());
-    }
-
     protected final void updateObjectionStatus(T message, UpdateObjectionStatusRequest request) {
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
+        DataMap.Builder requestContext = DataMapHolder.snapshot()
+                .operation(DataMapHolder.INTERNAL_API_UPDATE_OBJECTION_REQUEST)
+                .resourceKind(OBJECTION_RESOURCE_KIND).resourceUri(uri)
+                .status(String.valueOf(request.getProcessingStatus()));
+        LOG.info("Updating objection status through internal API", requestContext.build().getLogMap());
         try {
             internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
@@ -84,31 +77,18 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         } catch (Exception exception) {
             throw mapApiException(message, exception);
         }
-    }
-
-    protected final void updateObjectionStatus(
-            T message, UpdateObjectionStatusRequest request, ProcessorLogContext logContext) {
-        String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
-        ProcessorLogContext requestContext = logContext
-                .withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_OBJECTION_REQUEST)
-                .withResource(OBJECTION_RESOURCE_KIND, uri)
-                .withStatus(String.valueOf(request.getProcessingStatus()));
-        LOG.info("Updating objection status through internal API", requestContext.toLogMap());
-        updateObjectionStatus(message, request);
         LOG.info("Objection status update completed",
-                requestContext.withOperation(ProcessorLogContext.INTERNAL_API_UPDATE_OBJECTION_RESPONSE)
-                        .toLogMap());
+                requestContext.operation(DataMapHolder.INTERNAL_API_UPDATE_OBJECTION_RESPONSE)
+                        .build().getLogMap());
     }
 
     protected final void submitToChips(
             BaseObjectionResponse response,
             T message,
-            ChipsPartnerObjectionsSubmissionClient submissionClient,
-            ProcessorLogContext logContext) {
+            ChipsPartnerObjectionsSubmissionClient submissionClient) {
         try {
             StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
-            submissionClient.submitForObjections(
-                    response, objectionMessage, logContext.withObjectionId(response.getObjectionId()));
+            submissionClient.submitForObjections(response, objectionMessage);
         } catch (Exception exception) {
             throw mapApiException(message, exception);
         }

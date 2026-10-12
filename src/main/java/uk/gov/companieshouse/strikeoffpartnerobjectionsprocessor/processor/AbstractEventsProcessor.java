@@ -11,7 +11,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import java.util.function.Function;
 
@@ -48,25 +48,22 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
     }
 
     public final void process(T message) {
-        process(message, ProcessorLogContext.empty());
-    }
-
-    public final void process(T message, ProcessorLogContext logContext) {
-        LOG.debug("Validating event", logContext.withOperation(ProcessorLogContext.VALIDATION_STARTED).toLogMap());
+        LOG.debug("Validating event",
+                DataMapHolder.snapshot().operation(DataMapHolder.VALIDATION_STARTED).build().getLogMap());
         validate(message);
         LOG.debug("Event validation completed",
-                logContext.withOperation(ProcessorLogContext.VALIDATION_COMPLETED).toLogMap());
+                DataMapHolder.snapshot().operation(DataMapHolder.VALIDATION_COMPLETED).build().getLogMap());
         if (!eventTypeSupported(message)) {
             throw new InvalidStrikeOffMessageException("unsupported event type");
         }
-        doProcess(message, logContext);
+        doProcess(message);
     }
 
     protected abstract void validate(T message);
 
     protected abstract boolean eventTypeSupported(T message);
 
-    protected abstract void doProcess(T message, ProcessorLogContext logContext) throws DuplicateRecordException;
+    protected abstract void doProcess(T message) throws DuplicateRecordException;
 
     protected final String buildResourceUri(T message, String resourceSegment) {
         return String.format("/company/%s/%s/%s",

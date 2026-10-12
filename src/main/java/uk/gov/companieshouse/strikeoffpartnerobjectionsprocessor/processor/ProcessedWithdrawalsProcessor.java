@@ -10,7 +10,6 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 /**
  * Processor for processed strike-off partner withdrawal events.
@@ -37,18 +36,15 @@ public class ProcessedWithdrawalsProcessor
     }
 
     @Override
-    protected void doProcess(
-            StrikeOffPartnerObjectionsProcessed message, ProcessorLogContext logContext) {
-        WithdrawAllObjectionsResponse withdrawal = getWithdrawalDetails(message, logContext);
-        ProcessorLogContext withdrawalContext = logContext.withWithdrawalId(withdrawal.getWithdrawalId());
+    protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
+        WithdrawAllObjectionsResponse withdrawal = getWithdrawalDetails(message);
 
         // Idempotent check: if already in a terminal state, skip
         if (isDuplicateRecord(withdrawal.getProcessingStatus().getValue(), WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED.getValue())
                 || isDuplicateRecord(withdrawal.getProcessingStatus().getValue(), WithdrawalProcessingStatus.WITHDRAWAL_REJECTED.getValue())) {
             throw new DuplicateRecordException("Duplicate/complete Withdrawal skipped: strikeOffEventId=" + message.getStrikeOffEventId()
                     + ", withdrawalId=" + withdrawal.getWithdrawalId()
-                    + ", status=" + withdrawal.getProcessingStatus().getValue(),
-                    withdrawalContext.withStatus(withdrawal.getProcessingStatus().getValue()));
+                    + ", status=" + withdrawal.getProcessingStatus().getValue());
         }
 
         // Update status and carry failure reason through for failed outcomes.
@@ -59,7 +55,7 @@ public class ProcessedWithdrawalsProcessor
             request.setProcessingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED);
             request.setFailureReason(message.getErrorMessage());
         }
-        updateWithdrawalStatus(message, request, withdrawalContext);
+        updateWithdrawalStatus(message, request);
     }
 
 

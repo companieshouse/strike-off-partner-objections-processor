@@ -1,5 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,8 +12,9 @@ import uk.gov.companieshouse.api.model.ApiResponse;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
+import uk.gov.companieshouse.logging.util.DataMap;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,7 +58,7 @@ class AbstractObjectionsEventsProcessorTest {
             }
 
             @Override
-            protected void doProcess(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
+            protected void doProcess(StrikeOffPartnerObjections message) {
                 // Not required when testing objection-specific API operations.
             }
         };
@@ -66,6 +68,7 @@ class AbstractObjectionsEventsProcessorTest {
 
     @Test
     void getObjectionDetails_success_returnsApiResponseData() throws Exception {
+        DataMapHolder.initialise(new DataMap.Builder());
         BaseObjectionResponse objection = new BaseObjectionResponse()
                 .objectionId("objection-001")
                 .processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
@@ -73,10 +76,16 @@ class AbstractObjectionsEventsProcessorTest {
         when(handler.getObjection(OBJECTION_URI)).thenReturn(getObjection);
         when(getObjection.execute()).thenReturn(new ApiResponse<>(200, null, objection));
 
-        BaseObjectionResponse result = processor.getObjectionDetails(message, ProcessorLogContext.empty());
+        BaseObjectionResponse result = processor.getObjectionDetails(message);
 
         assertSame(objection, result);
+        assertEquals(objection.getObjectionId(), DataMapHolder.snapshot().build().objectionId);
         verify(handler).getObjection(OBJECTION_URI);
+    }
+
+    @AfterEach
+    void clearContext() {
+        DataMapHolder.clear();
     }
 
     @Test
@@ -86,9 +95,8 @@ class AbstractObjectionsEventsProcessorTest {
         when(handler.getObjection(OBJECTION_URI)).thenReturn(getObjection);
         when(getObjection.execute()).thenThrow(cause);
 
-        ProcessorLogContext logContext = ProcessorLogContext.empty();
         RuntimeException exception =
-                assertThrows(RuntimeException.class, () -> processor.getObjectionDetails(message, logContext));
+                assertThrows(RuntimeException.class, () -> processor.getObjectionDetails(message));
 
         assertEquals("Retryable error for eventId=" + EVENT_ID, exception.getMessage());
         assertSame(cause, exception.getCause());

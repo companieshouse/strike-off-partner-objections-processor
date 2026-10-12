@@ -1,5 +1,6 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,8 +12,9 @@ import uk.gov.companieshouse.api.model.ApiResponse;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
+import uk.gov.companieshouse.logging.util.DataMap;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,7 +60,7 @@ class AbstractWithdrawalsEventsProcessorTest {
             }
 
             @Override
-            protected void doProcess(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
+            protected void doProcess(StrikeOffPartnerObjections message) {
                 // Not required when testing withdrawal-specific API operations.
             }
         };
@@ -68,6 +70,7 @@ class AbstractWithdrawalsEventsProcessorTest {
 
     @Test
     void getWithdrawalDetails_success_returnsApiResponseData() throws Exception {
+        DataMapHolder.initialise(new DataMap.Builder());
         WithdrawAllObjectionsResponse withdrawal = new WithdrawAllObjectionsResponse()
                 .withdrawalId("withdrawal-001")
                 .processingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
@@ -75,10 +78,16 @@ class AbstractWithdrawalsEventsProcessorTest {
         when(handler.getAllWithdrawals(WITHDRAWAL_URI)).thenReturn(getWithdrawal);
         when(getWithdrawal.execute()).thenReturn(new ApiResponse<>(200, null, withdrawal));
 
-        WithdrawAllObjectionsResponse result = processor.getWithdrawalDetails(message, ProcessorLogContext.empty());
+        WithdrawAllObjectionsResponse result = processor.getWithdrawalDetails(message);
 
         assertSame(withdrawal, result);
+        assertEquals(withdrawal.getWithdrawalId(), DataMapHolder.snapshot().build().withdrawalId);
         verify(handler).getAllWithdrawals(WITHDRAWAL_URI);
+    }
+
+    @AfterEach
+    void clearContext() {
+        DataMapHolder.clear();
     }
 
     @Test
@@ -88,9 +97,8 @@ class AbstractWithdrawalsEventsProcessorTest {
         when(handler.getAllWithdrawals(WITHDRAWAL_URI)).thenReturn(getWithdrawal);
         when(getWithdrawal.execute()).thenThrow(cause);
 
-        ProcessorLogContext logContext = ProcessorLogContext.empty();
         RuntimeException exception =
-                assertThrows(RuntimeException.class, () -> processor.getWithdrawalDetails(message, logContext));
+                assertThrows(RuntimeException.class, () -> processor.getWithdrawalDetails(message));
 
         assertEquals("Retryable error for eventId=" + EVENT_ID, exception.getMessage());
         assertSame(cause, exception.getCause());

@@ -9,7 +9,6 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.ProcessorLogContext;
 
 /**
  * Processor for strike-off partner withdrawal events.
@@ -37,9 +36,8 @@ public class IncomingWithdrawalsProcessor
     }
 
     @Override
-    protected void doProcess(StrikeOffPartnerObjections message, ProcessorLogContext logContext) {
-        var withdrawalDetails = getWithdrawalDetails(message, logContext);
-        ProcessorLogContext withdrawalContext = logContext.withWithdrawalId(withdrawalDetails.getWithdrawalId());
+    protected void doProcess(StrikeOffPartnerObjections message) {
+        var withdrawalDetails = getWithdrawalDetails(message);
 
         // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
@@ -47,8 +45,7 @@ public class IncomingWithdrawalsProcessor
                 WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING.getValue())) {
             throw new DuplicateRecordException("Duplicate/complete Withdrawal skipped: strikeOffEventId=" +  message.getStrikeOffEventId()
                     + ", withdrawalId=" + withdrawalDetails.getWithdrawalId()
-                    + ", status=" + withdrawalDetails.getProcessingStatus().getValue(),
-                    withdrawalContext.withStatus(withdrawalDetails.getProcessingStatus().getValue()));
+                    + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
         }
 
         // Verify the current status is WITHDRAWAL_REQUESTED before updating to prevent invalid transitions.
@@ -61,8 +58,8 @@ public class IncomingWithdrawalsProcessor
         }
 
         // Update status to withdrawal-processing (SDK support pending)
-        updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING, withdrawalContext);
-        submitToChips(withdrawalDetails, message, chipsPartnerObjectionsSubmissionClient, withdrawalContext);
+        updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
+        submitToChips(withdrawalDetails, message, chipsPartnerObjectionsSubmissionClient);
     }
 
     @Override
