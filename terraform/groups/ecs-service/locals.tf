@@ -20,6 +20,9 @@ locals {
   docker_repo_kafka_error                 = "kafka-error-consumer"
   service_name_kafka_error_objections     = "strike-off-partner-objections-proc-error"
   app_env_objections_kafka_error          = "strike-off-partner-objections-processor-error.env"
+  # Service name and env file for processed topic kafka consumer
+  service_name_kafka_error_processed      = "sop-objections-kafka-processed-error"
+  app_env_sopo_kafka_processed_error      = "strike-off-partner-objections-processed-error.env"
   
   service_secrets_arn_map = {
     for sec in module.secrets.secrets :
