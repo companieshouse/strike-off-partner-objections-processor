@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
+import uk.gov.companieshouse.logging.util.DataMap;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
@@ -39,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -55,6 +57,7 @@ class StructuredLoggingKafkaListenerAspectTest {
     private static final String SENSITIVE_FAILURE_TEXT = "sensitive failure message";
     private static final String OBJECTION_ID = "objection-001";
     private static final String WITHDRAWAL_ID = "withdrawal-001";
+    private static final String OPERATION_METADATA = "operation-only";
 
     @Mock
     private ProcessorDispatcher processorDispatcher;
@@ -81,7 +84,7 @@ class StructuredLoggingKafkaListenerAspectTest {
     @AfterEach
     void tearDown() {
         structuredLogger.detachAppender(logAppender);
-        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        assertEquals(Map.of(), DataMapHolder.get().build().getLogMap());
         DataMapHolder.clear();
     }
 
@@ -362,10 +365,13 @@ class StructuredLoggingKafkaListenerAspectTest {
                 new ConsumerRecord<>("incoming-topic", 2, 15L, "message-key", event);
         int retryCount = Math.max(attempt - 1, 0);
         doAnswer(invocation -> {
-            assertEquals(retryCount, DataMapHolder.snapshot().build().getLogMap().get("retry_count"));
-            DataMapHolder.get().objectionId(OBJECTION_ID);
-            DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE).status("202")
-                    .resourceUri("/operation-only").errorType("operation-only").build();
+            DataMap.Builder context = DataMapHolder.get();
+            assertEquals(retryCount, context.build().getLogMap().get("retry_count"));
+            context.objectionId(OBJECTION_ID).operation(DataMapHolder.CHIPS_RESPONSE).status("202")
+                    .resourceKind(OPERATION_METADATA).resourceUri("/operation-only")
+                    .errorType(OPERATION_METADATA).retryReason(OPERATION_METADATA);
+            assertSame(context, DataMapHolder.get());
+            assertEquals("202", DataMapHolder.get().build().getLogMap().get("status"));
             return null;
         }).when(processorDispatcher).dispatch(event);
 
@@ -414,7 +420,10 @@ class StructuredLoggingKafkaListenerAspectTest {
     void incomingFailureRetainsEnrichedIdAndClearsContext(boolean duplicate) {
         ConsumerRecord<String, StrikeOffPartnerObjections> message = triggerObjectionEvent();
         doAnswer(invocation -> {
-            DataMapHolder.get().objectionId(OBJECTION_ID);
+            DataMapHolder.get().objectionId(OBJECTION_ID)
+                    .operation(DataMapHolder.CHIPS_RESPONSE).status("202")
+                    .resourceKind(OPERATION_METADATA).resourceUri("/operation-only")
+                    .errorType(OPERATION_METADATA).retryReason(OPERATION_METADATA);
             if (duplicate) {
                 throw new DuplicateRecordException(SENSITIVE_FAILURE_TEXT);
             }
@@ -429,8 +438,18 @@ class StructuredLoggingKafkaListenerAspectTest {
         }
 
         String operation = duplicate ? DataMapHolder.PROCESSING_SKIPPED : DataMapHolder.PROCESSING_FAILED;
-        assertEquals(OBJECTION_ID, logDataForOperation(operation).get("objection_id"));
-        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        Map<?, ?> failureData = logDataForOperation(operation);
+        assertEquals(OBJECTION_ID, failureData.get("objection_id"));
+        assertNull(failureData.get("status"));
+        assertNull(failureData.get("resource_kind"));
+        assertNull(failureData.get("resource_uri"));
+        if (duplicate) {
+            assertNoOperationFields(failureData);
+        } else {
+            assertEquals("InvalidStrikeOffMessageException", failureData.get("error_type"));
+            assertEquals("InvalidStrikeOffMessageException", failureData.get("retry_reason"));
+        }
+        assertEquals(Map.of(), DataMapHolder.get().build().getLogMap());
         assertNoSensitiveFailureTextLogged();
     }
 
@@ -456,7 +475,7 @@ class StructuredLoggingKafkaListenerAspectTest {
         String operation = duplicate ? DataMapHolder.PROCESSING_SKIPPED : DataMapHolder.PROCESSING_FAILED;
         assertEquals(WITHDRAWAL_ID, logDataForOperation(operation).get("withdrawal_id"));
         assertEquals(2, logDataForOperation(operation).get("retry_count"));
-        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        assertEquals(Map.of(), DataMapHolder.get().build().getLogMap());
         assertNoSensitiveFailureTextLogged();
     }
 
@@ -471,7 +490,7 @@ class StructuredLoggingKafkaListenerAspectTest {
         }).when(processorDispatcher).dispatch(incomingMessage.value());
 
         consumer.consumeStrikeOffObjectionsMessage(3, incomingMessage);
-        assertEquals(Map.of(), DataMapHolder.snapshot().build().getLogMap());
+        assertEquals(Map.of(), DataMapHolder.get().build().getLogMap());
         logAppender.list.clear();
         consumer.consumeProcessedStrikeOffObjectionsMessage(null, processedMessage);
 
@@ -492,26 +511,26 @@ class StructuredLoggingKafkaListenerAspectTest {
         doAnswer(invocation -> {
             DataMapHolder.get().objectionId(OBJECTION_ID);
             barrier.await(5, TimeUnit.SECONDS);
-            assertEquals(OBJECTION_ID, DataMapHolder.snapshot().build().getLogMap().get("objection_id"));
-            assertNull(DataMapHolder.snapshot().build().getLogMap().get("withdrawal_id"));
+            assertEquals(OBJECTION_ID, DataMapHolder.get().build().getLogMap().get("objection_id"));
+            assertNull(DataMapHolder.get().build().getLogMap().get("withdrawal_id"));
             return null;
         }).when(processorDispatcher).dispatch(incomingMessage.value());
         doAnswer(invocation -> {
             DataMapHolder.get().withdrawalId(WITHDRAWAL_ID);
             barrier.await(5, TimeUnit.SECONDS);
-            assertEquals(WITHDRAWAL_ID, DataMapHolder.snapshot().build().getLogMap().get("withdrawal_id"));
-            assertNull(DataMapHolder.snapshot().build().getLogMap().get("objection_id"));
+            assertEquals(WITHDRAWAL_ID, DataMapHolder.get().build().getLogMap().get("withdrawal_id"));
+            assertNull(DataMapHolder.get().build().getLogMap().get("objection_id"));
             return null;
         }).when(processorDispatcher).dispatch(processedMessage.value());
 
         try (var executor = Executors.newFixedThreadPool(2)) {
             var incomingResult = executor.submit(() -> {
                 consumer.consumeStrikeOffObjectionsMessage(1, incomingMessage);
-                return DataMapHolder.snapshot().build().getLogMap();
+                return DataMapHolder.get().build().getLogMap();
             });
             var processedResult = executor.submit(() -> {
                 consumer.consumeProcessedStrikeOffObjectionsMessage(1, processedMessage);
-                return DataMapHolder.snapshot().build().getLogMap();
+                return DataMapHolder.get().build().getLogMap();
             });
             assertEquals(Map.of(), incomingResult.get(10, TimeUnit.SECONDS));
             assertEquals(Map.of(), processedResult.get(10, TimeUnit.SECONDS));
@@ -578,8 +597,10 @@ class StructuredLoggingKafkaListenerAspectTest {
 
     private void assertNoOperationFields(Map<?, ?> data) {
         assertNull(data.get("status"));
+        assertNull(data.get("resource_kind"));
         assertNull(data.get("resource_uri"));
         assertNull(data.get("error_type"));
+        assertNull(data.get("retry_reason"));
     }
 
     private void assertNoSensitiveFailureTextLogged() {

@@ -18,6 +18,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHo
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.when;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.EVENT_ID;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.mockIncomingMessage;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.mockResourceHandler;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_RESOURCE_KIND;
 
 class AbstractWithdrawalsEventsProcessorTest {
 
@@ -70,18 +72,34 @@ class AbstractWithdrawalsEventsProcessorTest {
 
     @Test
     void getWithdrawalDetails_success_returnsApiResponseData() throws Exception {
-        DataMapHolder.initialise(new DataMap.Builder());
+        DataMap.Builder context = new DataMap.Builder().status("stale-status")
+                .errorType("stale-error").retryReason("stale-retry")
+                .resourceKind("stale-kind").resourceUri("/stale");
+        DataMapHolder.initialise(context);
         WithdrawAllObjectionsResponse withdrawal = new WithdrawAllObjectionsResponse()
                 .withdrawalId("withdrawal-001")
                 .processingStatus(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
         GetAllWithdrawals getWithdrawal = mock(GetAllWithdrawals.class);
         when(handler.getAllWithdrawals(WITHDRAWAL_URI)).thenReturn(getWithdrawal);
-        when(getWithdrawal.execute()).thenReturn(new ApiResponse<>(200, null, withdrawal));
+        when(getWithdrawal.execute()).thenAnswer(invocation -> {
+            DataMap requestData = DataMapHolder.get().build();
+            assertEquals(DataMapHolder.INTERNAL_API_GET_WITHDRAWAL_REQUEST, requestData.operation);
+            assertEquals(WITHDRAWAL_URI, requestData.resourceUri);
+            assertNull(requestData.status);
+            assertNull(requestData.errorType);
+            assertNull(requestData.retryReason);
+            return new ApiResponse<>(200, null, withdrawal);
+        });
 
         WithdrawAllObjectionsResponse result = processor.getWithdrawalDetails(message);
 
         assertSame(withdrawal, result);
-        assertEquals(withdrawal.getWithdrawalId(), DataMapHolder.snapshot().build().withdrawalId);
+        assertSame(context, DataMapHolder.get());
+        assertEquals(withdrawal.getWithdrawalId(), DataMapHolder.get().build().withdrawalId);
+        assertEquals(DataMapHolder.INTERNAL_API_GET_WITHDRAWAL_RESPONSE, context.build().operation);
+        assertEquals(WITHDRAWAL_URI, context.build().resourceUri);
+        assertEquals(WITHDRAWAL_RESOURCE_KIND, context.build().resourceKind);
+        assertEquals(withdrawal.getProcessingStatus().getValue(), context.build().status);
         verify(handler).getAllWithdrawals(WITHDRAWAL_URI);
     }
 
@@ -106,6 +124,7 @@ class AbstractWithdrawalsEventsProcessorTest {
 
     @Test
     void updateWithdrawalStatus_success_sendsRequestedStatus() throws Exception {
+        DataMapHolder.initialise(new DataMap.Builder().errorType("stale-error").retryReason("stale-retry"));
         UpdateWithdrawalStatus updateStatus = mock(UpdateWithdrawalStatus.class);
         when(handler.updateWithdrawalStatus(eq(WITHDRAWAL_STATUS_URI), any(UpdateWithdrawalStatusRequest.class)))
                 .thenReturn(updateStatus);
@@ -120,6 +139,13 @@ class AbstractWithdrawalsEventsProcessorTest {
         assertEquals(
                 WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING,
                 requestCaptor.getValue().getProcessingStatus());
+        DataMap responseData = DataMapHolder.get().build();
+        assertEquals(DataMapHolder.INTERNAL_API_UPDATE_WITHDRAWAL_RESPONSE, responseData.operation);
+        assertEquals(WITHDRAWAL_STATUS_URI, responseData.resourceUri);
+        assertEquals(WITHDRAWAL_RESOURCE_KIND, responseData.resourceKind);
+        assertEquals(String.valueOf(WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING), responseData.status);
+        assertNull(responseData.errorType);
+        assertNull(responseData.retryReason);
     }
 
     @Test

@@ -33,7 +33,8 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
 
     protected final BaseObjectionResponse getObjectionDetails(T message) {
         String uri = buildResourceUri(message, OBJECTIONS);
-        DataMap.Builder requestContext = DataMapHolder.snapshot()
+        DataMapHolder.clearLogFields();
+        DataMap.Builder requestContext = DataMapHolder.get()
                 .operation(DataMapHolder.INTERNAL_API_GET_OBJECTION_REQUEST)
                 .resourceKind(OBJECTION_RESOURCE_KIND).resourceUri(uri);
         LOG.info("Requesting objection details from internal API", requestContext.build().getLogMap());
@@ -47,7 +48,6 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
         } catch (Exception exception) {
             throw mapApiException(message, exception);
         }
-        DataMapHolder.get().objectionId(response.getObjectionId());
         LOG.info("Received objection details from internal API",
                 requestContext.operation(DataMapHolder.INTERNAL_API_GET_OBJECTION_RESPONSE)
                         .objectionId(response.getObjectionId())
@@ -64,7 +64,8 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
 
     protected final void updateObjectionStatus(T message, UpdateObjectionStatusRequest request) {
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
-        DataMap.Builder requestContext = DataMapHolder.snapshot()
+        DataMapHolder.clearLogFields();
+        DataMap.Builder requestContext = DataMapHolder.get()
                 .operation(DataMapHolder.INTERNAL_API_UPDATE_OBJECTION_REQUEST)
                 .resourceKind(OBJECTION_RESOURCE_KIND).resourceUri(uri)
                 .status(String.valueOf(request.getProcessingStatus()));

@@ -48,11 +48,13 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
     }
 
     public final void process(T message) {
+        DataMapHolder.clearLogFields();
         LOG.debug("Validating event",
-                DataMapHolder.snapshot().operation(DataMapHolder.VALIDATION_STARTED).build().getLogMap());
+                DataMapHolder.get().operation(DataMapHolder.VALIDATION_STARTED).build().getLogMap());
         validate(message);
+        DataMapHolder.clearLogFields();
         LOG.debug("Event validation completed",
-                DataMapHolder.snapshot().operation(DataMapHolder.VALIDATION_COMPLETED).build().getLogMap());
+                DataMapHolder.get().operation(DataMapHolder.VALIDATION_COMPLETED).build().getLogMap());
         if (!eventTypeSupported(message)) {
             throw new InvalidStrikeOffMessageException("unsupported event type");
         }

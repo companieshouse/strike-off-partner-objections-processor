@@ -1,23 +1,32 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.PartnerObjectionReason;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
+import uk.gov.companieshouse.logging.util.DataMap;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,6 +46,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
     private static final String TEST_API_KEY = "test-chips-api-key-123";
     private static final String OBJECTION_ID = "obj-001";
     private static final String WITHDRAWAL_ID = "wd-001";
+    private static final String REQUEST_METADATA = "request-only";
 
     private MockRestServiceServer server;
     private ChipsPartnerObjectionsSubmissionClient client;
@@ -49,6 +59,70 @@ class ChipsPartnerObjectionsSubmissionClientTest {
         this.server = MockRestServiceServer.bindTo(restTemplate).build();
         this.mapper = new ChipsPartnerObjectionsSubmissionRequestMapper();
         this.client = new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY, mapper);
+    }
+
+    @AfterEach
+    void clearContext() {
+        DataMapHolder.clear();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {202, 403, 503})
+    void submit_clearsTransientMetadataAndRetainsSharedIds(int statusCode) {
+        DataMap.Builder context = new DataMap.Builder().objectionId(OBJECTION_ID).withdrawalId(WITHDRAWAL_ID)
+                .operation(DataMapHolder.INTERNAL_API_GET_OBJECTION_RESPONSE).status("stale-status")
+                .errorType("stale-error").retryReason("stale-retry")
+                .resourceKind("stale-kind").resourceUri("/stale");
+        DataMapHolder.initialise(context);
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        ChipsPartnerObjectionsSubmissionClient submissionClient =
+                new ChipsPartnerObjectionsSubmissionClient(restTemplate, BASE_URL, TEST_API_KEY, mapper);
+        when(restTemplate.postForEntity(eq(ENDPOINT_URL), any(), eq(String.class))).thenAnswer(invocation -> {
+            DataMap requestData = context.build();
+            assertEquals(DataMapHolder.CHIPS_REQUEST, requestData.operation);
+            assertNull(requestData.status);
+            assertNull(requestData.errorType);
+            assertNull(requestData.retryReason);
+            assertNull(requestData.resourceKind);
+            assertNull(requestData.resourceUri);
+            context.status(REQUEST_METADATA).errorType(REQUEST_METADATA).retryReason(REQUEST_METADATA)
+                    .resourceKind(REQUEST_METADATA).resourceUri("/request-only");
+            if (statusCode == HttpStatus.FORBIDDEN.value()) {
+                throw new HttpClientErrorException(HttpStatus.FORBIDDEN);
+            }
+            if (statusCode == HttpStatus.SERVICE_UNAVAILABLE.value()) {
+                throw new ResourceAccessException("Connection unavailable");
+            }
+            return ResponseEntity.accepted().build();
+        });
+        ChipsPartnerObjectionsSubmissionRequest request = mapper.objectionRequest(
+                createObjectionResponse(ObjectionProcessingStatus.OBJECTION_ACCEPTED), buildMessage(EventType.OBJECTION));
+
+        if (statusCode == HttpStatus.ACCEPTED.value()) {
+            assertDoesNotThrow(() -> submissionClient.submit(request));
+        } else {
+            assertThrows(ChipsSubmissionException.class, () -> submissionClient.submit(request));
+        }
+
+        assertSame(context, DataMapHolder.get());
+        assertChipsResponseContext(context.build(), statusCode);
+    }
+
+    private void assertChipsResponseContext(DataMap responseData, int statusCode) {
+        assertEquals(DataMapHolder.CHIPS_RESPONSE, responseData.operation);
+        assertEquals(OBJECTION_ID, responseData.objectionId);
+        assertEquals(WITHDRAWAL_ID, responseData.withdrawalId);
+        assertNull(responseData.resourceKind);
+        assertNull(responseData.resourceUri);
+        assertNull(responseData.retryReason);
+        assertEquals(statusCode == HttpStatus.SERVICE_UNAVAILABLE.value() ? null : String.valueOf(statusCode),
+                responseData.status);
+        String expectedErrorType = switch (HttpStatus.valueOf(statusCode)) {
+            case FORBIDDEN -> HttpClientErrorException.class.getSimpleName();
+            case SERVICE_UNAVAILABLE -> ResourceAccessException.class.getSimpleName();
+            default -> null;
+        };
+        assertEquals(expectedErrorType, responseData.errorType);
     }
 
     @Test

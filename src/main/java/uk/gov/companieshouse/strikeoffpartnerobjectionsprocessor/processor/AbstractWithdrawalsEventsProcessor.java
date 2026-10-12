@@ -33,7 +33,8 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
 
     protected final WithdrawAllObjectionsResponse getWithdrawalDetails(T message) {
         String uri = buildResourceUri(message, WITHDRAWALS);
-        DataMap.Builder requestContext = DataMapHolder.snapshot()
+        DataMapHolder.clearLogFields();
+        DataMap.Builder requestContext = DataMapHolder.get()
                 .operation(DataMapHolder.INTERNAL_API_GET_WITHDRAWAL_REQUEST)
                 .resourceKind(WITHDRAWAL_RESOURCE_KIND).resourceUri(uri);
         LOG.info("Requesting withdrawal details from internal API", requestContext.build().getLogMap());
@@ -47,7 +48,6 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         } catch (Exception exception) {
             throw mapApiException(message, exception);
         }
-        DataMapHolder.get().withdrawalId(response.getWithdrawalId());
         LOG.info("Received withdrawal details from internal API",
                 requestContext.operation(DataMapHolder.INTERNAL_API_GET_WITHDRAWAL_RESPONSE)
                         .withdrawalId(response.getWithdrawalId())
@@ -64,7 +64,8 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
 
     protected final void updateWithdrawalStatus(T message, UpdateWithdrawalStatusRequest request) {
         String uri = buildInternalStatusUri(message, WITHDRAWALS, WITHDRAWAL_STATUS);
-        DataMap.Builder requestContext = DataMapHolder.snapshot()
+        DataMapHolder.clearLogFields();
+        DataMap.Builder requestContext = DataMapHolder.get()
                 .operation(DataMapHolder.INTERNAL_API_UPDATE_WITHDRAWAL_REQUEST)
                 .resourceKind(WITHDRAWAL_RESOURCE_KIND).resourceUri(uri)
                 .status(String.valueOf(request.getProcessingStatus()));

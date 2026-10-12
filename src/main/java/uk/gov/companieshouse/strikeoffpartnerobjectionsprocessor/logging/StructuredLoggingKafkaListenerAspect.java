@@ -84,20 +84,23 @@ public class StructuredLoggingKafkaListenerAspect {
 
     private static void logProcessedOutcome(ConsumerRecord<?, ?> message) {
         if (message.value() instanceof StrikeOffPartnerObjectionsProcessed event) {
-            LOG.info("Processed outcome received", DataMapHolder.snapshot()
+            DataMapHolder.clearLogFields();
+            LOG.info("Processed outcome received", DataMapHolder.get()
                     .operation(DataMapHolder.PROCESSED_OUTCOME_RECEIVED)
                     .status(asString(event.getSuccessFailureIndicator())).build().getLogMap());
         }
     }
 
     private static void logLifecycle(String message, String operation) {
-        LOG.info(message, DataMapHolder.snapshot().operation(operation).build().getLogMap());
+        DataMapHolder.clearLogFields();
+        LOG.info(message, DataMapHolder.get().operation(operation).build().getLogMap());
     }
 
     private void logFailure(Exception exception, int attempt) {
         ApiFailureDetails apiFailure = findApiFailure(exception);
         String errorType = apiFailure == null ? exception.getClass().getSimpleName() : apiFailure.exceptionType();
-        DataMap.Builder failure = DataMapHolder.snapshot().retryReason(errorType).errorType(errorType);
+        DataMapHolder.clearLogFields();
+        DataMap.Builder failure = DataMapHolder.get().retryReason(errorType).errorType(errorType);
         if (apiFailure != null) {
             failure.status(String.valueOf(apiFailure.statusCode()));
         }

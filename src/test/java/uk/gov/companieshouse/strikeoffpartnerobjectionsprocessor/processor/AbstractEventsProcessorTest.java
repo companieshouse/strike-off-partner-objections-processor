@@ -1,6 +1,7 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.apache.avro.specific.SpecificRecordBase;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -10,10 +11,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.error.ApiErrorResponseException;
 import uk.gov.companieshouse.api.handler.exception.URIValidationException;
+import uk.gov.companieshouse.logging.util.DataMap;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +39,8 @@ import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureI
 
 class AbstractEventsProcessorTest {
 
+    private static final String VALIDATION_METADATA = "validation-only";
+
     private SpecificRecordBase message;
     private AbstractEventsProcessor<SpecificRecordBase> processor;
     private final AtomicBoolean supported = new AtomicBoolean(true);
@@ -43,6 +49,7 @@ class AbstractEventsProcessorTest {
 
     @BeforeEach
     void setUp() {
+        DataMapHolder.initialise(new DataMap.Builder());
         message = mock(SpecificRecordBase.class);
         processor = new AbstractEventsProcessor<>(mock(InternalApiClient.class),
                 value -> "evt-001",
@@ -50,6 +57,10 @@ class AbstractEventsProcessorTest {
                 value -> "strike-001") {
             @Override
             protected void validate(SpecificRecordBase message) {
+                assertValidationContext(DataMapHolder.VALIDATION_STARTED);
+                DataMapHolder.get().status(VALIDATION_METADATA).errorType(VALIDATION_METADATA)
+                        .retryReason(VALIDATION_METADATA).resourceKind(VALIDATION_METADATA)
+                        .resourceUri("/validation-only");
                 validated.set(true);
             }
 
@@ -60,9 +71,40 @@ class AbstractEventsProcessorTest {
 
             @Override
             protected void doProcess(SpecificRecordBase message) {
+                assertValidationContext(DataMapHolder.VALIDATION_COMPLETED);
                 processed.set(true);
             }
         };
+    }
+
+    @AfterEach
+    void clearContext() {
+        DataMapHolder.clear();
+    }
+
+    @Test
+    void process_clearsTransientMetadataWithoutReplacingSharedContext() {
+        DataMap.Builder context = new DataMap.Builder().objectionId("objection-001")
+                .operation(DataMapHolder.PROCESSED_OUTCOME_RECEIVED).status("SUCCESS")
+                .errorType("stale-error").retryReason("stale-retry")
+                .resourceKind("stale-kind").resourceUri("/stale");
+        DataMapHolder.initialise(context);
+
+        processor.process(message);
+
+        assertSame(context, DataMapHolder.get());
+        assertEquals("objection-001", context.build().objectionId);
+        assertValidationContext(DataMapHolder.VALIDATION_COMPLETED);
+    }
+
+    private void assertValidationContext(String operation) {
+        DataMap data = DataMapHolder.get().build();
+        assertEquals(operation, data.operation);
+        assertNull(data.status);
+        assertNull(data.errorType);
+        assertNull(data.retryReason);
+        assertNull(data.resourceKind);
+        assertNull(data.resourceUri);
     }
 
     @Test

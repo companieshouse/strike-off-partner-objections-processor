@@ -58,14 +58,16 @@ public class ChipsPartnerObjectionsSubmissionClient {
         String endpoint = buildEndpointUrl();
         ResponseEntity<String> response;
 
+        DataMapHolder.clearLogFields();
         LOG.info("Submitting objection or withdrawal to CHIPS",
-                DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_REQUEST).build().getLogMap());
+                DataMapHolder.get().operation(DataMapHolder.CHIPS_REQUEST).build().getLogMap());
         try {
             HttpEntity<ChipsPartnerObjectionsSubmissionRequest> httpEntity = createHttpEntity(request);
             response = restTemplate.postForEntity(endpoint, httpEntity, String.class);
         } catch (HttpStatusCodeException exception) {
+            DataMapHolder.clearLogFields();
             LOG.info("CHIPS response received",
-                    DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE)
+                    DataMapHolder.get().operation(DataMapHolder.CHIPS_RESPONSE)
                             .status(String.valueOf(exception.getStatusCode().value()))
                             .errorType(exception.getClass().getSimpleName())
                             .build().getLogMap());
@@ -74,16 +76,18 @@ public class ChipsPartnerObjectionsSubmissionClient {
             }
             throw new ChipsSubmissionException("CHIPS submission failed", exception.getStatusCode().value(), exception);
         } catch (RestClientException exception) {
+            DataMapHolder.clearLogFields();
             LOG.info("CHIPS submission failed before receiving a response",
-                    DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE)
+                    DataMapHolder.get().operation(DataMapHolder.CHIPS_RESPONSE)
                             .errorType(exception.getClass().getSimpleName())
                             .build().getLogMap());
             throw new ChipsSubmissionException("CHIPS submission failed due to transport error", TRANSPORT_ERROR_STATUS, exception);
         }
 
         int statusCode = response.getStatusCode().value();
+        DataMapHolder.clearLogFields();
         LOG.info("CHIPS response received",
-                DataMapHolder.snapshot().operation(DataMapHolder.CHIPS_RESPONSE)
+                DataMapHolder.get().operation(DataMapHolder.CHIPS_RESPONSE)
                         .status(String.valueOf(statusCode))
                         .build().getLogMap());
         if (statusCode == UNAUTHORIZED_STATUS) {

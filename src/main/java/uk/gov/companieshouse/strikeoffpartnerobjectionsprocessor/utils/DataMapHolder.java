@@ -36,7 +36,7 @@ public final class DataMapHolder {
     }
 
     /**
-     * Returns a detached builder outside a listener, so other callers cannot leave thread state behind.
+     * Returns the shared listener builder without clearing metadata, or a detached builder outside a listener.
      */
     public static DataMap.Builder get() {
         DataMap.Builder builder = BUILDER.get();
@@ -44,23 +44,15 @@ public final class DataMapHolder {
     }
 
     /**
-     * Copies only shared message metadata; operation fields belong to this log entry alone.
+     * Clears transient fields before an unrelated log entry, retaining shared message metadata.
      */
-    public static DataMap.Builder snapshot() {
-        DataMap data = get().build();
-        return new DataMap.Builder()
-                .companyNumber(data.companyNumber)
-                .topic(data.topic)
-                .partition(data.partition)
-                .offset(data.offset)
-                .kafkaMessageKey(data.kafkaMessageKey)
-                .partnerOrganisation(data.partnerOrganisation)
-                .source(data.source)
-                .correlationId(data.correlationId)
-                .eventType(data.eventType)
-                .objectionId(data.objectionId)
-                .withdrawalId(data.withdrawalId)
-                .retryCount(data.retryCount);
+    public static void clearLogFields() {
+        get().operation(null)
+                .resourceKind(null)
+                .resourceUri(null)
+                .status(null)
+                .errorType(null)
+                .retryReason(null);
     }
 
     public static void clear() {

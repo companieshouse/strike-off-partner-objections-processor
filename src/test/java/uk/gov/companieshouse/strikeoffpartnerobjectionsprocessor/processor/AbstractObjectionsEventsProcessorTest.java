@@ -18,6 +18,7 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHo
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.EVENT_ID;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.mockIncomingMessage;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorTestFixtures.mockResourceHandler;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTION_RESOURCE_KIND;
 
 class AbstractObjectionsEventsProcessorTest {
 
@@ -68,18 +70,34 @@ class AbstractObjectionsEventsProcessorTest {
 
     @Test
     void getObjectionDetails_success_returnsApiResponseData() throws Exception {
-        DataMapHolder.initialise(new DataMap.Builder());
+        DataMap.Builder context = new DataMap.Builder().status("stale-status")
+                .errorType("stale-error").retryReason("stale-retry")
+                .resourceKind("stale-kind").resourceUri("/stale");
+        DataMapHolder.initialise(context);
         BaseObjectionResponse objection = new BaseObjectionResponse()
                 .objectionId("objection-001")
                 .processingStatus(ObjectionProcessingStatus.OBJECTION_SUBMITTED);
         GetObjection getObjection = mock(GetObjection.class);
         when(handler.getObjection(OBJECTION_URI)).thenReturn(getObjection);
-        when(getObjection.execute()).thenReturn(new ApiResponse<>(200, null, objection));
+        when(getObjection.execute()).thenAnswer(invocation -> {
+            DataMap requestData = DataMapHolder.get().build();
+            assertEquals(DataMapHolder.INTERNAL_API_GET_OBJECTION_REQUEST, requestData.operation);
+            assertEquals(OBJECTION_URI, requestData.resourceUri);
+            assertNull(requestData.status);
+            assertNull(requestData.errorType);
+            assertNull(requestData.retryReason);
+            return new ApiResponse<>(200, null, objection);
+        });
 
         BaseObjectionResponse result = processor.getObjectionDetails(message);
 
         assertSame(objection, result);
-        assertEquals(objection.getObjectionId(), DataMapHolder.snapshot().build().objectionId);
+        assertSame(context, DataMapHolder.get());
+        assertEquals(objection.getObjectionId(), DataMapHolder.get().build().objectionId);
+        assertEquals(DataMapHolder.INTERNAL_API_GET_OBJECTION_RESPONSE, context.build().operation);
+        assertEquals(OBJECTION_URI, context.build().resourceUri);
+        assertEquals(OBJECTION_RESOURCE_KIND, context.build().resourceKind);
+        assertEquals(objection.getProcessingStatus().getValue(), context.build().status);
         verify(handler).getObjection(OBJECTION_URI);
     }
 
@@ -104,6 +122,7 @@ class AbstractObjectionsEventsProcessorTest {
 
     @Test
     void updateObjectionStatus_success_sendsRequestedStatus() throws Exception {
+        DataMapHolder.initialise(new DataMap.Builder().errorType("stale-error").retryReason("stale-retry"));
         UpdateObjectionStatus updateStatus = mock(UpdateObjectionStatus.class);
         when(handler.updateObjectionStatus(
                 org.mockito.ArgumentMatchers.eq(OBJECTION_STATUS_URI),
@@ -121,6 +140,13 @@ class AbstractObjectionsEventsProcessorTest {
         assertEquals(
                 ObjectionProcessingStatus.OBJECTION_PROCESSING,
                 requestCaptor.getValue().getProcessingStatus());
+        DataMap responseData = DataMapHolder.get().build();
+        assertEquals(DataMapHolder.INTERNAL_API_UPDATE_OBJECTION_RESPONSE, responseData.operation);
+        assertEquals(OBJECTION_STATUS_URI, responseData.resourceUri);
+        assertEquals(OBJECTION_RESOURCE_KIND, responseData.resourceKind);
+        assertEquals(String.valueOf(ObjectionProcessingStatus.OBJECTION_PROCESSING), responseData.status);
+        assertNull(responseData.errorType);
+        assertNull(responseData.retryReason);
     }
 
     @Test
