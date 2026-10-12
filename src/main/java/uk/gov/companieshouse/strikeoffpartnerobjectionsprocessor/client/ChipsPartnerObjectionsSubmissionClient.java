@@ -3,8 +3,10 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -23,6 +25,8 @@ public class ChipsPartnerObjectionsSubmissionClient {
     private final ChipsPartnerObjectionsSubmissionRequestMapper requestMapper;
     private final String chipsRestInterfaceBaseUrl;
     private final String chipsRestApiKey;
+    @Value("${simulate.chips.500:false}")
+    private boolean simulateChips500;
 
     public ChipsPartnerObjectionsSubmissionClient(
             RestTemplate restTemplate,
@@ -55,6 +59,9 @@ public class ChipsPartnerObjectionsSubmissionClient {
 
         try {
             HttpEntity<ChipsPartnerObjectionsSubmissionRequest> httpEntity = createHttpEntity(request);
+            if (simulateChips500) {
+                throw new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR);
+            }
             response = restTemplate.postForEntity(endpoint, httpEntity, String.class);
         } catch (HttpStatusCodeException exception) {
             if (exception.getStatusCode().value() == UNAUTHORIZED_STATUS) {
