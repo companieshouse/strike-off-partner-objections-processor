@@ -92,6 +92,24 @@ module "ecs-service" {
 
 # ------------------------------------------------------------------------------
 # KAFKA ERROR CONSUMER service
+# 
+# This service consumes messages from the Kafka error topic for processed
+# objections and republishes them to the retry topic for reprocessing.
+#
+# CONFIGURATION REQUIREMENTS PER ENVIRONMENT:
+# 1. Set desired_task_count_kafka_error > 0 to enable the error consumer
+#    (defaults to 0, which disables the service)
+# 2. Configure environment file: strike-off-partner-objections-processor-error.env
+#    with the following environment variables:
+#    - KAFKA_TOPIC_STRIKEOFF_PROCESSED_OBJECTIONS_ERROR: Error topic name
+#    - KAFKA_STRIKEOFF_PROCESSED_OBJECTIONS_ERROR_GROUP_ID: Error consumer group ID
+#    - KAFKA_TOPIC_STRIKEOFF_PROCESSED_OBJECTIONS_RETRY: Retry topic name
+#    - Other Kafka connection details (inherit from main service via shared secrets)
+# 3. Optional: Configure EventBridge scheduler for time-based scaling
+#    - enable_scale_up_eventbridge_scheduler
+#    - enable_scale_down_eventbridge_scheduler
+#    - startup_eventbridge_scheduler_cron
+#    - shutdown_eventbridge_scheduler_cron
 # ------------------------------------------------------------------------------
 module "ecs-service-kafka-objections-error" {
   source = "git@github.com:companieshouse/terraform-modules//aws/ecs/ecs-service?ref=1.0.340"
