@@ -8,6 +8,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 /**
  * Processor for incoming strike-off partner objection events.
@@ -36,10 +37,10 @@ public class IncomingObjectionsProcessor
 
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
-        LOG.info("Processing objection event with ID: " + message.getEventId());
+        LOG.info("Processing objection event with ID: " + message.getEventId(), DataMapHolder.getLogMap());
         var objection = getObjectionDetails(message);
 
-        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId());
+        LOG.info("Objection details fetched: objectionId=" + objection.getObjectionId(), DataMapHolder.getLogMap());
 
         // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
@@ -50,13 +51,13 @@ public class IncomingObjectionsProcessor
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
-        LOG.info("Objection details fetched and submitting to chips for processing: objectionId=" + objection.getObjectionId());
+        LOG.info("Objection details fetched and submitting to chips for processing: objectionId=" + objection.getObjectionId(), DataMapHolder.getLogMap());
 
         submitToChips(objection, message, chipsPartnerObjectionsSubmissionClient);
 
         // Update status to objection-processing
         updateObjectionStatus(message, ObjectionProcessingStatus.OBJECTION_PROCESSING);
-        LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId());
+        LOG.info("Updated objection status to OBJECTION_PROCESSING for objectionId=" + objection.getObjectionId(), DataMapHolder.getLogMap());
 
     }
 

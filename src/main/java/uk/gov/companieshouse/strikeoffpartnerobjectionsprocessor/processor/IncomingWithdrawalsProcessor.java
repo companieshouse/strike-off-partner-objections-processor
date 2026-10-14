@@ -9,6 +9,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 /**
  * Processor for strike-off partner withdrawal events.
@@ -37,10 +38,10 @@ public class IncomingWithdrawalsProcessor
 
     @Override
     protected void doProcess(StrikeOffPartnerObjections message) {
-        LOG.info("Processing withdrawal event with ID: " + message.getEventId());
+        LOG.info("Processing withdrawal event with ID: " + message.getEventId(), DataMapHolder.getLogMap());
         var withdrawalDetails = getWithdrawalDetails(message);
 
-        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId(), DataMapHolder.getLogMap());
 
         // Idempotent check: if already processing, skip
         if (isDuplicateRecord(
@@ -51,7 +52,7 @@ public class IncomingWithdrawalsProcessor
                     + ", status=" + withdrawalDetails.getProcessingStatus().getValue());
         }
 
-        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawalDetails.getWithdrawalId(), DataMapHolder.getLogMap());
 
         // Verify the current status is WITHDRAWAL_REQUESTED before updating to prevent invalid transitions.
         // This is a non-retryable guard: any status other than WITHDRAWAL_PROCESSING (duplicate) or
@@ -61,11 +62,11 @@ public class IncomingWithdrawalsProcessor
                     + withdrawalDetails.getProcessingStatus().getValue()
                     + ", expected=WITHDRAWAL_REQUESTED for withdrawalId=" + withdrawalDetails.getWithdrawalId());
         }
-        LOG.info("Submitting withdrawal details to CHIPS for processing: withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        LOG.info("Submitting withdrawal details to CHIPS for processing: withdrawalId=" + withdrawalDetails.getWithdrawalId(), DataMapHolder.getLogMap());
         submitToChips(withdrawalDetails, message, chipsPartnerObjectionsSubmissionClient);
         // Update status to withdrawal-processing (SDK support pending)
         updateWithdrawalStatus(message, WithdrawalProcessingStatus.WITHDRAWAL_PROCESSING);
-        LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId());
+        LOG.info("Updated withdrawal status to WITHDRAWAL_PROCESSING for withdrawalId=" + withdrawalDetails.getWithdrawalId(), DataMapHolder.getLogMap());
 
     }
 

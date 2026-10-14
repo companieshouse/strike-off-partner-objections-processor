@@ -16,14 +16,11 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor.ProcessorDispatcher;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
-import java.util.Map;
 import java.util.function.Consumer;
 
-import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.FAILURE;
-import static uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator.SUCCESS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.APPLICATION_NAMESPACE;
-import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.buildBaseKafkaLogMap;
 
 
 /**
@@ -70,8 +67,7 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             throw new NonRetryableErrorException("Missing StrikeOffPartnerObjections payload");
         }
         final String eventId = event.getEventId() != null ? event.getEventId() : "unknown";
-        var logMap = buildKafkaLogMapForIncomingObjections(consumerRecord);
-        logAndDispatchEvent(eventId, attemptNumber, logMap, event, processorDispatcher::dispatch);
+        logAndDispatchEvent(eventId, attemptNumber, event, processorDispatcher::dispatch);
     }
 
     // This topic is populated once chips has completed processing the objection or withdrawal
@@ -100,53 +96,24 @@ public class StrikeOffPartnerObjectionsKafkaConsumer {
             throw new NonRetryableErrorException("Missing StrikeOffPartnerObjectionsProcessed payload");
         }
         final String eventId = event.getStrikeOffEventId() != null ? event.getStrikeOffEventId() : "unknown";
-        var logMap = buildKafkaLogMapForProcessedObjections(consumerRecord);
-        logAndDispatchEvent(eventId, attemptNumber, logMap, event, processorDispatcher::dispatch);
+        logAndDispatchEvent(eventId, attemptNumber, event, processorDispatcher::dispatch);
     }
 
     private <T> void logAndDispatchEvent(String eventId,
                                          Integer attemptNumber,
-                                         Map<String, Object> logMap,
                                          T event,
                                          Consumer<T> dispatchAction) {
         try {
-            LOG.infoContext(eventId, "Consumed objections/withdrawals event", logMap);
-            LOG.infoContext(eventId, "Kafka retry attempt: " + (attemptNumber == null ? 1 : attemptNumber), logMap);
+            LOG.infoContext(eventId, "Consumed objections/withdrawals event", DataMapHolder.getLogMap());
+            LOG.infoContext(eventId, "Kafka retry attempt: " + (attemptNumber == null ? 1 : attemptNumber), DataMapHolder.getLogMap());
             dispatchAction.accept(event);
-            LOG.infoContext(eventId, "Event processed successfully", logMap);
+            LOG.infoContext(eventId, "Event processed successfully", DataMapHolder.getLogMap());
         } catch (DuplicateRecordException duplicateRecordException) {
-            LOG.info(duplicateRecordException.getMessage(), logMap);
+            LOG.info(duplicateRecordException.getMessage(), DataMapHolder.getLogMap());
         } catch (Exception exception) {
-            LOG.error("Error encountered in StrikeOffPartnerObjectionsKafkaConsumer: " + exception.getMessage(), exception, logMap);
+            LOG.error("Error encountered in StrikeOffPartnerObjectionsKafkaConsumer: " + exception.getMessage(), exception, DataMapHolder.getLogMap());
             throw exception;
         }
-    }
-
-    private Map<String, Object> buildKafkaLogMapForIncomingObjections(ConsumerRecord<String, StrikeOffPartnerObjections> consumerRecord) {
-        StrikeOffPartnerObjections msg = consumerRecord.value();
-        Map<String, Object> logMap = buildBaseKafkaLogMap(consumerRecord);
-        logMap.put("company_number", msg != null ? msg.getCompanyNumber() : null);
-        logMap.put("strike_off_event_id", msg != null ? msg.getStrikeOffEventId() : null);
-        logMap.put("partner_organisation", msg != null ? msg.getPartnerOrganisation() : null);
-        logMap.put("event_type", msg != null ? msg.getEventType() : null);
-        logMap.put("event_id", msg != null ? msg.getEventId() : null);
-        return logMap;
-    }
-
-    private Map<String, Object> buildKafkaLogMapForProcessedObjections(ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord) {
-        StrikeOffPartnerObjectionsProcessed msg = consumerRecord.value();
-        Map<String, Object> logMap = buildBaseKafkaLogMap(consumerRecord);
-        logMap.put("company_number", msg != null ? msg.getCompanyNumber() : null);
-        logMap.put("strike_off_event_id", msg != null ? msg.getStrikeOffEventId() : null);
-        logMap.put("event_type", msg != null ? msg.getEventType() : null);
-        logMap.put("success_failure_indicator", msg != null ? msg.getSuccessFailureIndicator() : null);
-        if (msg != null && msg.getSuccessFailureIndicator() == FAILURE) {
-            logMap.put("error_message", msg.getErrorMessage());
-        }
-        if (msg != null && msg.getSuccessFailureIndicator() == SUCCESS) {
-            logMap.put("initial_expiration_on", msg.getInitialExpirationOn());
-        }
-        return logMap;
     }
 
 }

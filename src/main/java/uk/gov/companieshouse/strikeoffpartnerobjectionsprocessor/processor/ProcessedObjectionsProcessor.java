@@ -9,6 +9,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 /**
  * Processor for processed strike-off partner objection events.
@@ -35,7 +36,7 @@ public class ProcessedObjectionsProcessor
 
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
-        LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId());
+        LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId(), DataMapHolder.getLogMap());
         BaseObjectionResponse objection = getObjectionDetails(message);
 
         // Idempotent check: if this has already been accepted or rejected, skip
@@ -46,7 +47,7 @@ public class ProcessedObjectionsProcessor
                     + ", status=" + objection.getProcessingStatus().getValue());
         }
 
-        LOG.info("Objection details fetched for: objectionId=" + objection.getObjectionId());
+        LOG.info("Objection details fetched for: objectionId=" + objection.getObjectionId(), DataMapHolder.getLogMap());
 
         // Update status and carry outcome fields through to the PATCH request.
         SuccessFailureIndicator successFailureIndicator = message.getSuccessFailureIndicator();
@@ -60,7 +61,7 @@ public class ProcessedObjectionsProcessor
         }
         updateObjectionStatus(message, request);
         LOG.info("Updated objection status to " + request.getProcessingStatus()
-                + " for objectionId=" + objection.getObjectionId());
+                + " for objectionId=" + objection.getObjectionId(), DataMapHolder.getLogMap());
     }
 
 
