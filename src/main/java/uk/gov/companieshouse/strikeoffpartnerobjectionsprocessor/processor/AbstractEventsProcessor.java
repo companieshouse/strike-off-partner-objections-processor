@@ -11,6 +11,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import java.util.function.Function;
 
@@ -144,11 +145,11 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
         if (status >= 400 && status < 500 && status != TOO_MANY_REQUESTS_STATUS) {
-            LOG.info("Non-retryable API call outcome: status=" + status + ", eventId=" + eventId);
+            LOG.info("Non-retryable API call outcome: status=" + status + ", eventId=" + eventId, DataMapHolder.getLogMap());
             return new InvalidStrikeOffMessageException(
                     "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
         }
-        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
+        LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex, DataMapHolder.getLogMap());
         return new RuntimeException(
                 "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
     }

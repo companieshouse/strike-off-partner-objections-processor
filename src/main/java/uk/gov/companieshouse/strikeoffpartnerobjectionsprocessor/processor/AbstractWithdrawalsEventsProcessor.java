@@ -7,6 +7,7 @@ import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import java.util.function.Function;
 
@@ -36,10 +37,10 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
                     .getAllWithdrawals(uri)
                     .execute();
             LOG.info("Fetched withdrawal for withdrawalId=" + response.getData().getWithdrawalId()
-                    + ", status=" + response.getStatusCode());
+                    + ", status=" + response.getStatusCode(), DataMapHolder.getLogMap());
             return response.getData();
         } catch (Exception exception) {
-            LOG.info("Failed to get withdrawal - api url: " + uri);
+            LOG.info("Failed to get withdrawal - api url: " + uri, DataMapHolder.getLogMap());
             throw mapApiException(message, exception);
         }
     }
@@ -58,9 +59,9 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
                     .updateWithdrawalStatus(uri, request)
                     .execute();
             LOG.info("Successfully updated withdrawal status to " + request.getProcessingStatus()
-                    + " for eventId=" + getEventId(message));
+                    + " for eventId=" + getEventId(message), DataMapHolder.getLogMap());
         } catch (Exception exception) {
-            LOG.info("Failed to update withdrawal status using api url: " + uri);
+            LOG.info("Failed to update withdrawal status using api url: " + uri, DataMapHolder.getLogMap());
             throw mapApiException(message, exception);
         }
     }
@@ -72,9 +73,9 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
         try {
             StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
             submissionClient.submitForWithdrawals(response, objectionMessage);
-            LOG.info("Submitted " + objectionMessage.getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
+            LOG.info("Submitted " + objectionMessage.getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message), DataMapHolder.getLogMap());
         } catch (Exception exception) {
-            LOG.info("Failed to submit " + ((StrikeOffPartnerObjections) message).getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message));
+            LOG.info("Failed to submit " + ((StrikeOffPartnerObjections) message).getEventType() + " to CHIPS endpoint for eventId=" + getEventId(message), DataMapHolder.getLogMap());
             throw mapApiException(message, exception);
         }
     }
