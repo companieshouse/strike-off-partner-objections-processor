@@ -1,11 +1,7 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import uk.gov.companieshouse.logging.Logger;
 import uk.gov.companieshouse.logging.LoggerFactory;
-import uk.gov.companieshouse.logging.util.DataMap;
-
-import java.util.Map;
 
 public final class StrikeOffPartnerEventsProcessorConstants {
 
@@ -22,12 +18,4 @@ public final class StrikeOffPartnerEventsProcessorConstants {
     public static final String CHIPS_PARTNER_OBJECTIONS_ENDPOINT = "/chipsgeneric/strike-off-partner-objections";
     public static final Logger LOG = LoggerFactory.getLogger(APPLICATION_NAMESPACE);
 
-    public static Map<String, Object> buildBaseKafkaLogMap(ConsumerRecord<String, ?> baseRecord) {
-        return new DataMap.Builder()
-                .topic(baseRecord.topic())
-                .partition(baseRecord.partition())
-                .offset(baseRecord.offset())
-                .build()
-                .getLogMap();
-    }
 }

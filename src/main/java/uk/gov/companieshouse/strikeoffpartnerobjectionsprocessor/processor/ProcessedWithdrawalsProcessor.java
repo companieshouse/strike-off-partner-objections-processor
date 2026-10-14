@@ -10,6 +10,7 @@ import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.DataMapHolder;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 
@@ -39,7 +40,7 @@ public class ProcessedWithdrawalsProcessor
 
     @Override
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
-        LOG.info("Processing withdrawal outcome event with ID: " + message.getStrikeOffEventId());
+        LOG.info("Processing withdrawal outcome event with ID: " + message.getStrikeOffEventId(), DataMapHolder.getLogMap());
         WithdrawAllObjectionsResponse withdrawal = getWithdrawalDetails(message);
 
         // Idempotent check: if already in a terminal state, skip
@@ -50,7 +51,7 @@ public class ProcessedWithdrawalsProcessor
                     + ", status=" + withdrawal.getProcessingStatus().getValue());
         }
 
-        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawal.getWithdrawalId());
+        LOG.info("Withdrawal details fetched: withdrawalId=" + withdrawal.getWithdrawalId(), DataMapHolder.getLogMap());
 
         // Update status and carry failure reason through for failed outcomes.
         UpdateWithdrawalStatusRequest request = new UpdateWithdrawalStatusRequest();
@@ -62,7 +63,7 @@ public class ProcessedWithdrawalsProcessor
         }
         updateWithdrawalStatus(message, request);
         LOG.info("Updated withdrawal status to " + request.getProcessingStatus()
-                + " for withdrawalId=" + withdrawal.getWithdrawalId());
+                + " for withdrawalId=" + withdrawal.getWithdrawalId(), DataMapHolder.getLogMap());
     }
 
 
