@@ -6,10 +6,11 @@ import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionClient;
 
 import java.util.function.Function;
 
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWALS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.WITHDRAWAL_STATUS;
 
@@ -68,7 +69,7 @@ public abstract class AbstractWithdrawalsEventsProcessor<T extends SpecificRecor
     protected final void submitToChips(
             WithdrawAllObjectionsResponse response,
             T message,
-            ChipsPartnerObjectionsSubmissionClient submissionClient) {
+            ChipsSubmissionClient submissionClient) {
         try {
             StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
             submissionClient.submitForWithdrawals(response, objectionMessage);

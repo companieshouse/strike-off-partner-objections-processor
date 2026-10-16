@@ -1,6 +1,7 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +15,8 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants;
 
 @Component
-public class ChipsPartnerObjectionsSubmissionClient {
+@Profile("!stagsbox & !livesbox")
+public class ChipsPartnerObjectionsSubmissionClient implements ChipsSubmissionClient {
     private static final int ACCEPTED_STATUS = 202;
     private static final int UNAUTHORIZED_STATUS = 401;
     private static final int TRANSPORT_ERROR_STATUS = 503;

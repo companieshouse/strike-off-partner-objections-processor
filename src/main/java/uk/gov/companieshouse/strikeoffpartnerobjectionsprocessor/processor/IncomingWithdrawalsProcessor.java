@@ -6,9 +6,10 @@ import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 
 /**
  * Processor for strike-off partner withdrawal events.
@@ -20,9 +21,9 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Inva
 @Component
 public class IncomingWithdrawalsProcessor
         extends AbstractWithdrawalsEventsProcessor<StrikeOffPartnerObjections> {
-    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient;
+    private final ChipsSubmissionClient chipsPartnerObjectionsSubmissionClient;
 
-    protected IncomingWithdrawalsProcessor(InternalApiClient internalApiClient, ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
+    protected IncomingWithdrawalsProcessor(InternalApiClient internalApiClient, ChipsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
         super(internalApiClient,
                 StrikeOffPartnerObjections::getEventId,
                 StrikeOffPartnerObjections::getCompanyNumber,

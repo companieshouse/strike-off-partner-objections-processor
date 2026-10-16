@@ -6,8 +6,10 @@ import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.EventType;
 import org.apache.avro.specific.SpecificRecordBase;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
+
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 
 /**
  * Processor for incoming strike-off partner objection events.
@@ -19,9 +21,9 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.Dupl
 @Component
 public class IncomingObjectionsProcessor
         extends AbstractObjectionsEventsProcessor<StrikeOffPartnerObjections> {
-    private final ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient;
+    private final ChipsSubmissionClient chipsPartnerObjectionsSubmissionClient;
 
-    protected IncomingObjectionsProcessor(InternalApiClient internalApiClient, ChipsPartnerObjectionsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
+    protected IncomingObjectionsProcessor(InternalApiClient internalApiClient, ChipsSubmissionClient chipsPartnerObjectionsSubmissionClient) {
         super(internalApiClient,
                 StrikeOffPartnerObjections::getEventId,
                 StrikeOffPartnerObjections::getCompanyNumber,
@@ -64,4 +66,6 @@ public class IncomingObjectionsProcessor
     protected void validate(StrikeOffPartnerObjections message) {
         validateIncomingEvent(message);
     }
+
+
 }
