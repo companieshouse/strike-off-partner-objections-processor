@@ -6,10 +6,11 @@ import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 
 import java.util.function.Function;
+import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionClient;
 
+import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.OBJECTIONS;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.STATUS;
 
@@ -68,7 +69,7 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
     protected final void submitToChips(
             BaseObjectionResponse response,
             T message,
-            ChipsPartnerObjectionsSubmissionClient submissionClient) {
+            ChipsSubmissionClient submissionClient) {
         try {
             StrikeOffPartnerObjections objectionMessage = (StrikeOffPartnerObjections) message;
             submissionClient.submitForObjections(response, objectionMessage);
