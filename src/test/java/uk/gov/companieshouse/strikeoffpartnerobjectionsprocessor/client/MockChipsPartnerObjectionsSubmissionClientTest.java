@@ -1,5 +1,7 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +31,8 @@ class MockChipsPartnerObjectionsSubmissionClientTest {
     private static final String COMPANY_NUMBER = "12345678";
     private static final String STRIKE_OFF_EVENT_ID = "strike-100";
     private static final String API_KEY = "test-key";
+    private static final String EXPECTED_AUTH = "Basic " + Base64.getEncoder().encodeToString((API_KEY + ":").getBytes(StandardCharsets.UTF_8));
+
 
     private MockRestServiceServer server;
     private MockChipsPartnerObjectionsSubmissionClient client;
@@ -43,9 +47,9 @@ class MockChipsPartnerObjectionsSubmissionClientTest {
 
     @Test
     void objectionPostsSuccessfulProcessedCallback() {
-        server.expect(requestTo(CALLBACK_URL))
+            server.expect(requestTo(CALLBACK_URL))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header(HttpHeaders.AUTHORIZATION, "Basic " + API_KEY))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, EXPECTED_AUTH))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.strike_off_event_id").value(STRIKE_OFF_EVENT_ID))
                 .andExpect(jsonPath("$.company_number").value(COMPANY_NUMBER))
@@ -65,6 +69,7 @@ class MockChipsPartnerObjectionsSubmissionClientTest {
     void withdrawalPostsSuccessfulProcessedCallbackWithoutExpirationDate() {
         server.expect(requestTo(CALLBACK_URL))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, EXPECTED_AUTH))
                 .andExpect(jsonPath("$.strike_off_event_id").value(STRIKE_OFF_EVENT_ID))
                 .andExpect(jsonPath("$.company_number").value(COMPANY_NUMBER))
                 .andExpect(jsonPath("$.event_type").value("WITHDRAWAL"))

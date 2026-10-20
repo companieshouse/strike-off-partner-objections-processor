@@ -1,5 +1,7 @@
 package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.integration;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,11 +63,11 @@ class MockChipsProfileIntegrationTest {
     void stagsboxWithFlagEnabledUsesMockAndPostsSuccessfulObjection() {
         assertInstanceOf(MockChipsPartnerObjectionsSubmissionClient.class, submissionClient);
         assertTrue(context.getBeansOfType(ChipsPartnerObjectionsSubmissionClient.class).isEmpty());
-
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString(("test-key" + ":").getBytes(StandardCharsets.UTF_8));
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         server.expect(requestTo(CALLBACK_URL))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header(HttpHeaders.AUTHORIZATION, "Basic test-key"))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, authHeader))
                 .andExpect(jsonPath("$.strike_off_event_id")
                         .value(IntegrationTestFixtures.STRIKE_OFF_EVENT_ID))
                 .andExpect(jsonPath("$.event_type").value("OBJECTION"))
