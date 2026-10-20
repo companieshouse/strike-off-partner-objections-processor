@@ -15,6 +15,7 @@ import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 
+import static java.time.ZoneOffset.UTC;
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 
 /**
@@ -53,7 +54,7 @@ public class MockChipsPartnerObjectionsSubmissionClient implements ChipsSubmissi
                 .eventType(ProcessedStrikeOffPartnerObjection.EventTypeEnum.OBJECTION)
                 .companyNumber(response.getCompanyNumber())
                 .successFailureIndicator(ProcessedStrikeOffPartnerObjection.SuccessFailureIndicatorEnum.SUCCESS)
-                .initialExpirationOn(LocalDate.now().plusYears(2)));
+                .initialExpirationOn(LocalDate.now(UTC).plusYears(2)));
     }
 
     @Override
@@ -70,7 +71,7 @@ public class MockChipsPartnerObjectionsSubmissionClient implements ChipsSubmissi
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set(HttpHeaders.AUTHORIZATION, "Basic " + kafkaApiKey);
+            headers.setBasicAuth(kafkaApiKey, "");
             restTemplate.postForEntity(
                     kafkaApiUrl, new HttpEntity<>(processed, headers), Void.class);
         } catch (Exception e) {
