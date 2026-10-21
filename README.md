@@ -1,10 +1,11 @@
 # strike-off-partner-objections-processor
 Kafka processor service for consuming strike-off objections and withdrawals, integrating with CHIPS and sending callback notification to partner organisations (e.g. HMRC).
 Consumer to listen to strike-off-partner-objections-incoming topic and strike-off-partner-objections-processed topic, and process the messages accordingly.
----
+
+***
 ## Related Services
 
-- [strike-off-partner-objections-processor](https://github.com/companieshouse/strike-off-partner-objections-processor)
+- [strike-off-partner-objections-api](https://github.com/companieshouse/strike-off-partner-objections-api)
 
 ## Technology Stack
 - Java 21
@@ -12,8 +13,8 @@ Consumer to listen to strike-off-partner-objections-incoming topic and strike-of
 - Maven
 - MongoDB
 - Apache Kafka
----
 
+***
 ## Requirements
 
 To build the `strike-off-partner-objections-processor`, you will need:
