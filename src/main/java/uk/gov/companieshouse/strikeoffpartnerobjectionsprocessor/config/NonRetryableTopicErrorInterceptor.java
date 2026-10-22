@@ -21,7 +21,7 @@ public class NonRetryableTopicErrorInterceptor implements ProducerInterceptor<St
 
     @Override
     public ProducerRecord<String, Object> onSend(ProducerRecord<String, Object> producerRecord) {
-        if (producerRecord == null || !producerRecord.topic().contains(ERROR_TOPIC_SUFFIX)) {
+        if (producerRecord == null || !producerRecord.topic().endsWith(ERROR_TOPIC_SUFFIX)) {
             return producerRecord;
         }
 
