@@ -112,6 +112,8 @@ class KafkaConsumerConfigTest {
                 factory.getConfigurationProperties().get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
         assertEquals(AvroSerializer.class,
                 factory.getConfigurationProperties().get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
+        assertEquals(NonRetryableTopicErrorInterceptor.class.getName(),
+                factory.getConfigurationProperties().get(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG));
     }
 
     @Test
@@ -124,6 +126,8 @@ class KafkaConsumerConfigTest {
                 factory.getConfigurationProperties().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
         assertEquals(ProcessedEventSerializer.class,
                 factory.getConfigurationProperties().get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
+        assertEquals(NonRetryableTopicErrorInterceptor.class.getName(),
+                factory.getConfigurationProperties().get(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG));
     }
 
     @Test
