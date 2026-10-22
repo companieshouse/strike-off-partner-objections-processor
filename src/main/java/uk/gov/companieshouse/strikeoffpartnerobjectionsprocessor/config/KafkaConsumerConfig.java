@@ -2,6 +2,7 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.config;
 
 import consumer.deserialization.AvroDeserializer;
 import consumer.serialization.AvroSerializer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,12 +10,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjections;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization.ProcessedEventDeserializer;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization.ProcessedEventSerializer;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Kafka configuration for consuming and producing strike-off partner objections messages.
@@ -23,6 +28,8 @@ import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.serialization.P
  */
 @Configuration
 public class KafkaConsumerConfig {
+
+    private static final String INTERCEPTOR_CLASSES_CONFIG = ProducerConfig.INTERCEPTOR_CLASSES_CONFIG;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -104,12 +111,21 @@ public class KafkaConsumerConfig {
     // =========================================================================
     @Bean
     public ProducerFactory<String, StrikeOffPartnerObjections> producerFactory() {
-        return builder().createProducerFactory(AvroSerializer.class);
+        return createProducerFactoryWithInterceptor(AvroSerializer.class);
     }
 
     @Bean
     public ProducerFactory<String, StrikeOffPartnerObjectionsProcessed> processedProducerFactory() {
-        return builder().createProducerFactory(ProcessedEventSerializer.class);
+        return createProducerFactoryWithInterceptor(ProcessedEventSerializer.class);
+    }
+
+    private <T> ProducerFactory<String, T> createProducerFactoryWithInterceptor(Class<?> valueSerializerClass) {
+        ProducerFactory<String, T> producerFactory = builder().createProducerFactory(valueSerializerClass);
+        Map<String, Object> producerProps = new HashMap<>(producerFactory.getConfigurationProperties());
+        producerProps.put(
+                INTERCEPTOR_CLASSES_CONFIG,
+                NonRetryableTopicErrorInterceptor.class.getName());
+        return new DefaultKafkaProducerFactory<>(producerProps);
     }
 
 
