@@ -214,7 +214,7 @@ class AbstractEventsProcessorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {400, 401, 403, 404, 422, 499})
+    @ValueSource(ints = {400, 404, 422, 499})
     void mapApiException_clientError_isNonRetryable(int status) {
         ApiErrorResponseException cause = apiException(status);
 
@@ -226,7 +226,7 @@ class AbstractEventsProcessorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {399, 429, 500, 502, 503})
+    @ValueSource(ints = {399, 401, 403, 429, 500, 502, 503})
     void mapApiException_retryableApiStatus_returnsRuntimeException(int status) {
         ApiErrorResponseException cause = apiException(status);
 

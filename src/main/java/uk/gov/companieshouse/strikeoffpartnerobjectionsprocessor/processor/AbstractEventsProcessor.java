@@ -25,6 +25,10 @@ import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.St
  */
 public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
 
+    private static final int CLIENT_ERROR_STATUS_LOWER_BOUND = 400;
+    private static final int CLIENT_ERROR_STATUS_UPPER_BOUND = 500;
+    private static final int UNAUTHORISED_STATUS = 401;
+    private static final int FORBIDDEN_STATUS = 403;
     private static final int TOO_MANY_REQUESTS_STATUS = 429;
 
 
@@ -140,7 +144,7 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
     }
 
     private RuntimeException classifyStatusCodeException(String eventId, int status, Exception ex) {
-        if (status >= 400 && status < 500 && status != TOO_MANY_REQUESTS_STATUS) {
+        if (isNonRetryableClientError(status)) {
             LOG.info("Non-retryable API call outcome: status=" + status + ", eventId=" + eventId);
             return new InvalidStrikeOffMessageException(
                     "Non-retryable API error (status=" + status + ") for eventId=" + eventId, ex);
@@ -148,5 +152,13 @@ public abstract class AbstractEventsProcessor<T extends SpecificRecordBase> {
         LOG.error("API call failed: status=" + status + ", eventId=" + eventId, ex);
         return new RuntimeException(
                 "Retryable API error (status=" + status + ") for eventId=" + eventId, ex);
+    }
+
+    private boolean isNonRetryableClientError(int status) {
+        return status >= CLIENT_ERROR_STATUS_LOWER_BOUND
+                && status < CLIENT_ERROR_STATUS_UPPER_BOUND
+                && status != TOO_MANY_REQUESTS_STATUS
+                && status != UNAUTHORISED_STATUS
+                && status != FORBIDDEN_STATUS;
     }
 }

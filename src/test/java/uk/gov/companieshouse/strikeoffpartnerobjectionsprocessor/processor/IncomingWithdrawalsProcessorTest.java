@@ -101,7 +101,7 @@ class IncomingWithdrawalsProcessorTest {
     }
 
     @Test
-    void process_chipsSubmission403_isNonRetryable() {
+    void process_chipsSubmission403_isRetryable() {
         StrikeOffPartnerObjections message = incomingMessage(WITHDRAWAL);
         WithdrawAllObjectionsResponse withdrawal = withdrawalWithStatus(
                 WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
@@ -112,11 +112,11 @@ class IncomingWithdrawalsProcessorTest {
                 .when(chipsPartnerObjectionsSubmissionClient)
                 .submitForWithdrawals(any(), any());
 
-        InvalidStrikeOffMessageException exception = assertThrows(
-                InvalidStrikeOffMessageException.class,
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
                 () -> processor.process(message));
 
-        assertTrue(exception.getMessage().contains("Non-retryable API error (status=403)"));
+        assertTrue(exception.getMessage().contains("Retryable API error (status=403)"));
         verify(chipsPartnerObjectionsSubmissionClient).submitForWithdrawals(any(), eq(message));
     }
 
