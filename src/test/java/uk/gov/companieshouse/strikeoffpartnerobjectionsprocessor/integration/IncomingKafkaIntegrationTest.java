@@ -30,7 +30,6 @@ import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObject
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsPartnerObjectionsSubmissionClient;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.client.ChipsSubmissionException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.consumers.StrikeOffPartnerObjectionsKafkaConsumer;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -174,7 +173,7 @@ class IncomingKafkaIntegrationTest {
     }
 
     @Test
-    void chips403_isClassifiedAsNonRetryable() throws Exception {
+    void chips403_isClassifiedAsRetryable() throws Exception {
         StrikeOffPartnerObjections message = incomingMessage(EventType.WITHDRAWAL);
         stubGetWithdrawal(WithdrawalProcessingStatus.WITHDRAWAL_REQUESTED);
         UpdateWithdrawalStatus updateWithdrawalStatus = mock(UpdateWithdrawalStatus.class);
@@ -186,11 +185,11 @@ class IncomingKafkaIntegrationTest {
         ConsumerRecord<String, StrikeOffPartnerObjections> kafkaRecord =
                 new ConsumerRecord<>(INCOMING_TOPIC, 0, 0L, message.getEventId(), message);
 
-        InvalidStrikeOffMessageException exception = assertThrows(
-                InvalidStrikeOffMessageException.class,
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
                 () -> consumer.consumeStrikeOffObjectionsMessage(1, kafkaRecord));
 
-        assertEquals("Non-retryable API error (status=403) for eventId=" + message.getEventId(), exception.getMessage());
+        assertEquals("Retryable API error (status=403) for eventId=" + message.getEventId(), exception.getMessage());
     }
 
     private void stubGetObjection(ObjectionProcessingStatus status) throws Exception {
