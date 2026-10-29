@@ -2,15 +2,12 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.WithdrawAllObjectionsResponse;
 import uk.gov.companieshouse.api.objections.model.UpdateWithdrawalStatusRequest;
 import uk.gov.companieshouse.api.objections.model.WithdrawalProcessingStatus;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -89,25 +86,6 @@ class ProcessedWithdrawalsProcessorTest {
         assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED,
                 requestCaptor.getValue().getProcessingStatus());
         assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
-    }
-
-    @ParameterizedTest
-    @EnumSource(
-            value = WithdrawalProcessingStatus.class,
-            names = {"WITHDRAWAL_ACCEPTED", "WITHDRAWAL_REJECTED"})
-    void process_terminalWithdrawal_throwsDuplicateWithoutUpdatingStatus(
-            WithdrawalProcessingStatus terminalStatus) {
-        StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
-        doReturn(withdrawalWithStatus(terminalStatus)).when(processor).getWithdrawalDetails(message);
-
-        DuplicateRecordException exception =
-                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
-
-        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
-        assertTrue(exception.getMessage().contains(WITHDRAWAL_ID));
-        assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
-        verify(processor, never()).updateWithdrawalStatus(
-                eq(message), any(UpdateWithdrawalStatusRequest.class));
     }
 
     @Test

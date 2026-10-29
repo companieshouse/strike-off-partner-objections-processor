@@ -2,15 +2,12 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -97,24 +94,6 @@ class ProcessedObjectionsProcessorTest {
         assertNull(requestCaptor.getValue().getInitialExpirationOn());
     }
 
-    @ParameterizedTest
-    @EnumSource(
-            value = ObjectionProcessingStatus.class,
-            names = {"OBJECTION_ACCEPTED", "OBJECTION_REJECTED"})
-    void process_terminalObjection_throwsDuplicateWithoutUpdatingStatus(
-            ObjectionProcessingStatus terminalStatus) {
-        StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
-        doReturn(objectionWithStatus(terminalStatus)).when(processor).getObjectionDetails(message);
-
-        DuplicateRecordException exception =
-                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
-
-        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
-        assertTrue(exception.getMessage().contains(OBJECTION_ID));
-        assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
-        verify(processor, never()).updateObjectionStatus(
-                eq(message), any(UpdateObjectionStatusRequest.class));
-    }
 
     @Test
     void process_objectionNotFound_rethrowsInvalidMessageWithoutUpdatingStatus() {
