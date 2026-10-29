@@ -8,7 +8,6 @@ import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
 import uk.gov.companieshouse.strikeoff.partner.objections.SuccessFailureIndicator;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 
 import static uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils.StrikeOffPartnerEventsProcessorConstants.LOG;
 
@@ -39,14 +38,6 @@ public class ProcessedObjectionsProcessor
     protected void doProcess(StrikeOffPartnerObjectionsProcessed message) {
         LOG.info("Processing objection event with ID: " + message.getStrikeOffEventId());
         BaseObjectionResponse objection = getObjectionDetails(message);
-
-        // Idempotent check: if this has already been accepted or rejected, skip
-        if (isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_ACCEPTED.getValue())
-                || isDuplicateRecord(objection.getProcessingStatus().getValue(), ObjectionProcessingStatus.OBJECTION_REJECTED.getValue())) {
-            throw new DuplicateRecordException("Duplicate/complete Objection skipped: strikeOffEventId=" + message.getStrikeOffEventId()
-                    + ", objectionId=" + objection.getObjectionId()
-                    + ", status=" + objection.getProcessingStatus().getValue());
-        }
 
         LOG.info("Objection details fetched for: objectionId=" + objection.getObjectionId());
 
