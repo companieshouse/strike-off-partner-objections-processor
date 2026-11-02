@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static uk.gov.companieshouse.strikeoff.partner.objections.ProcessedEventType.OBJECTION;
@@ -46,7 +45,7 @@ class StructuredKafkaLoggingAspectTest {
                 .setPartnerOrganisation("TEST_ORG")
                 .setStrikeOffEventId("strike-123")
                 .build();
-        ConsumerRecord<String, StrikeOffPartnerObjections> record =
+        ConsumerRecord<String, StrikeOffPartnerObjections> consumerRecord =
                 new ConsumerRecord<>("objections", 2, 10L, "key", event);
         ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
         AtomicReference<Map<String, Object>> capturedContext = new AtomicReference<>();
@@ -55,7 +54,7 @@ class StructuredKafkaLoggingAspectTest {
             return "processed";
         }).when(joinPoint).proceed();
 
-        Object result = aspect.logKafkaMessage(joinPoint, record);
+        Object result = aspect.logKafkaMessage(joinPoint, consumerRecord);
 
         assertEquals("processed", result);
         assertEquals("12345678", capturedContext.get().get("company_number"));
@@ -69,7 +68,7 @@ class StructuredKafkaLoggingAspectTest {
     @Test
     void logKafkaMessageAddsProcessedFailureContext() throws Throwable {
         StrikeOffPartnerObjectionsProcessed event = processedEvent(FAILURE);
-        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> record =
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord =
                 new ConsumerRecord<>("processed", 1, 5L, "key", event);
         ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
         AtomicReference<Map<String, Object>> capturedContext = new AtomicReference<>();
@@ -78,7 +77,7 @@ class StructuredKafkaLoggingAspectTest {
             return null;
         }).when(joinPoint).proceed();
 
-        aspect.logKafkaMessage(joinPoint, record);
+        aspect.logKafkaMessage(joinPoint, consumerRecord);
 
         assertEquals("12345678", capturedContext.get().get("company_number"));
         assertEquals("strike-123", capturedContext.get().get("strike_off_event_id"));
@@ -91,7 +90,7 @@ class StructuredKafkaLoggingAspectTest {
     @Test
     void logKafkaMessageAddsProcessedSuccessContext() throws Throwable {
         StrikeOffPartnerObjectionsProcessed event = processedEvent(SUCCESS);
-        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> record =
+        ConsumerRecord<String, StrikeOffPartnerObjectionsProcessed> consumerRecord =
                 new ConsumerRecord<>("processed", 1, 5L, "key", event);
         ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
         AtomicReference<Map<String, Object>> capturedContext = new AtomicReference<>();
@@ -100,7 +99,7 @@ class StructuredKafkaLoggingAspectTest {
             return null;
         }).when(joinPoint).proceed();
 
-        aspect.logKafkaMessage(joinPoint, record);
+        aspect.logKafkaMessage(joinPoint, consumerRecord);
 
         assertEquals(SUCCESS, capturedContext.get().get("success_failure_indicator"));
         assertEquals(LocalDate.parse("2026-07-06"), capturedContext.get().get("initial_expiration_on"));
@@ -109,7 +108,7 @@ class StructuredKafkaLoggingAspectTest {
 
     @Test
     void logKafkaMessageHandlesOtherPayloadAndClearsContextWhenProcessingFails() throws Throwable {
-        ConsumerRecord<String, Object> record = new ConsumerRecord<>("other", 3, 12L, "key", new Object());
+        ConsumerRecord<String, Object> consumerRecord = new ConsumerRecord<>("other", 3, 12L, "key", new Object());
         ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
         AtomicReference<Map<String, Object>> capturedContext = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -117,7 +116,7 @@ class StructuredKafkaLoggingAspectTest {
             throw new IllegalStateException("processing failed");
         }).when(joinPoint).proceed();
 
-        assertThrows(IllegalStateException.class, () -> aspect.logKafkaMessage(joinPoint, record));
+        assertThrows(IllegalStateException.class, () -> aspect.logKafkaMessage(joinPoint, consumerRecord));
 
         assertFalse(capturedContext.get().containsKey("event_type"));
         assertTrue(capturedContext.get().containsKey("topic"));
