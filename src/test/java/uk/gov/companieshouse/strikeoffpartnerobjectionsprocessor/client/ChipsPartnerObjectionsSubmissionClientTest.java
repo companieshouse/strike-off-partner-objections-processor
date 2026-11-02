@@ -62,7 +62,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 .andExpect(jsonPath("$.source").value("HMRC"))
                 .andExpect(jsonPath("$.partner_case_reference").value("OBJECTION"))
                 .andExpect(jsonPath("$.partner_contact_email").value("12345678"))
-                .andExpect(jsonPath("$.partner_objection_reason").value("other"))
+                .andExpect(jsonPath("$.partner_objection_reason").value("not-provided"))
                 .andExpect(jsonPath("$.strike_off_event_id").value("obj-001"))
                 .andExpect(jsonPath("$.kind").value("Objection"))
                 .andRespond(withStatus(HttpStatus.ACCEPTED));
@@ -192,7 +192,7 @@ class ChipsPartnerObjectionsSubmissionClientTest {
                 .submissionCompanyName("TEST_ORG")
                 .objectionId(OBJECTION_ID)
                 .partnerCaseReference("OBJECTION")
-                .partnerObjectionReason(PartnerObjectionReason.OTHER)
+                .partnerObjectionReason(PartnerObjectionReason.NOT_PROVIDED)
                 .partnerContactEmail("12345678")
                 .processingStatus(processingStatus);
     }
