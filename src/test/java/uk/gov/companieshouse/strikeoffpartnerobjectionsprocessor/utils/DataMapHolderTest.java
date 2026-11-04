@@ -2,7 +2,6 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.utils;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import uk.gov.companieshouse.logging.util.DataMap;
 
 import java.util.Map;
 
@@ -25,11 +24,13 @@ class DataMapHolderTest {
 
     @Test
     void gettersReturnInstalledContext() {
-        DataMap dataMap = new DataMap.Builder().topic("topic").build();
-        Map<String, Object> logMap = Map.of("event_id", "event-123");
-        DataMapHolder.set(dataMap, logMap);
+        DataMapHolder.getBuilder()
+                .topic("topic")
+                .companyNumber("12345678")
+                .requestId("request-123");
 
-        assertEquals(dataMap, DataMapHolder.get());
-        assertEquals(logMap, DataMapHolder.getLogMap());
+        assertEquals(DataMapHolder.get().getLogMap(), DataMapHolder.getLogMap());
+        assertEquals("12345678", DataMapHolder.getLogMap().get("company_number"));
+        assertEquals("request-123", DataMapHolder.getLogMap().get("request_id"));
     }
 }

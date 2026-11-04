@@ -58,10 +58,13 @@ class StructuredKafkaLoggingAspectTest {
 
         assertEquals("processed", result);
         assertEquals("12345678", capturedContext.get().get("company_number"));
-        assertEquals("strike-123", capturedContext.get().get("strike_off_event_id"));
+        assertEquals("strike-123", capturedContext.get().get("request_id"));
+        assertEquals("objections", capturedContext.get().get("topic"));
+        assertEquals(2, capturedContext.get().get("partition"));
+        assertEquals(10L, capturedContext.get().get("offset"));
         assertEquals("TEST_ORG", capturedContext.get().get("partner_organisation"));
-        assertEquals(EventType.OBJECTION, capturedContext.get().get("event_type"));
-        assertEquals("event-123", capturedContext.get().get("event_id"));
+        assertFalse(capturedContext.get().containsKey("event_type"));
+        assertFalse(capturedContext.get().containsKey("event_id"));
         assertTrue(DataMapHolder.getLogMap().isEmpty());
     }
 
@@ -80,10 +83,11 @@ class StructuredKafkaLoggingAspectTest {
         aspect.logKafkaMessage(joinPoint, consumerRecord);
 
         assertEquals("12345678", capturedContext.get().get("company_number"));
-        assertEquals("strike-123", capturedContext.get().get("strike_off_event_id"));
-        assertEquals(OBJECTION, capturedContext.get().get("event_type"));
-        assertEquals(FAILURE, capturedContext.get().get("success_failure_indicator"));
-        assertEquals("Processing failed", capturedContext.get().get("error_message"));
+        assertEquals("strike-123", capturedContext.get().get("request_id"));
+        assertEquals("processed", capturedContext.get().get("topic"));
+        assertFalse(capturedContext.get().containsKey("event_type"));
+        assertFalse(capturedContext.get().containsKey("success_failure_indicator"));
+        assertFalse(capturedContext.get().containsKey("error_message"));
         assertFalse(capturedContext.get().containsKey("initial_expiration_on"));
     }
 
@@ -101,8 +105,10 @@ class StructuredKafkaLoggingAspectTest {
 
         aspect.logKafkaMessage(joinPoint, consumerRecord);
 
-        assertEquals(SUCCESS, capturedContext.get().get("success_failure_indicator"));
-        assertEquals(LocalDate.parse("2026-07-06"), capturedContext.get().get("initial_expiration_on"));
+        assertEquals("12345678", capturedContext.get().get("company_number"));
+        assertEquals("strike-123", capturedContext.get().get("request_id"));
+        assertFalse(capturedContext.get().containsKey("success_failure_indicator"));
+        assertFalse(capturedContext.get().containsKey("initial_expiration_on"));
         assertFalse(capturedContext.get().containsKey("error_message"));
     }
 
@@ -120,6 +126,8 @@ class StructuredKafkaLoggingAspectTest {
 
         assertFalse(capturedContext.get().containsKey("event_type"));
         assertTrue(capturedContext.get().containsKey("topic"));
+        assertTrue(capturedContext.get().containsKey("partition"));
+        assertTrue(capturedContext.get().containsKey("offset"));
         assertTrue(DataMapHolder.getLogMap().isEmpty());
         verify(joinPoint).proceed();
     }
