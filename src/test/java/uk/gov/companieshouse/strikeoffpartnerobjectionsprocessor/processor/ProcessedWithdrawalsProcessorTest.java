@@ -89,6 +89,42 @@ class ProcessedWithdrawalsProcessorTest {
     }
 
     @Test
+    void process_acceptedWithdrawalReplay_updatesStatusToAccepted() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
+        doReturn(withdrawalWithStatus(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED))
+                .when(processor).getWithdrawalDetails(message);
+        doNothing().when(processor).updateWithdrawalStatus(
+                eq(message), any(UpdateWithdrawalStatusRequest.class));
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
+        verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
+        assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_ACCEPTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertNull(requestCaptor.getValue().getFailureReason());
+    }
+
+    @Test
+    void process_rejectedWithdrawalReplay_updatesStatusAndFailureReason() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, FAILURE);
+        doReturn(withdrawalWithStatus(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED))
+                .when(processor).getWithdrawalDetails(message);
+        doNothing().when(processor).updateWithdrawalStatus(
+                eq(message), any(UpdateWithdrawalStatusRequest.class));
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateWithdrawalStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateWithdrawalStatusRequest.class);
+        verify(processor).updateWithdrawalStatus(eq(message), requestCaptor.capture());
+        assertEquals(WithdrawalProcessingStatus.WITHDRAWAL_REJECTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
+    }
+
+    @Test
     void process_withdrawalNotFound_rethrowsInvalidMessageWithoutUpdatingStatus() {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(WITHDRAWAL, SUCCESS);
         InvalidStrikeOffMessageException notFoundException = new InvalidStrikeOffMessageException(

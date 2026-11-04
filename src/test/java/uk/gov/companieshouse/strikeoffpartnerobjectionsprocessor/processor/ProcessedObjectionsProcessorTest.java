@@ -94,6 +94,43 @@ class ProcessedObjectionsProcessorTest {
         assertNull(requestCaptor.getValue().getInitialExpirationOn());
     }
 
+    @Test
+    void process_acceptedObjectionReplay_updatesStatusAndOutcomeFields() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
+        doReturn(objectionWithStatus(ObjectionProcessingStatus.OBJECTION_ACCEPTED))
+                .when(processor).getObjectionDetails(message);
+        doNothing().when(processor).updateObjectionStatus(
+                eq(message), any(UpdateObjectionStatusRequest.class));
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+        verify(processor).updateObjectionStatus(eq(message), requestCaptor.capture());
+        assertEquals(ObjectionProcessingStatus.OBJECTION_ACCEPTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getInitialExpirationOn(), requestCaptor.getValue().getInitialExpirationOn());
+        assertNull(requestCaptor.getValue().getFailureReason());
+    }
+
+    @Test
+    void process_rejectedObjectionReplay_updatesStatusAndOutcomeFields() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, FAILURE);
+        doReturn(objectionWithStatus(ObjectionProcessingStatus.OBJECTION_REJECTED))
+                .when(processor).getObjectionDetails(message);
+        doNothing().when(processor).updateObjectionStatus(
+                eq(message), any(UpdateObjectionStatusRequest.class));
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+        verify(processor).updateObjectionStatus(eq(message), requestCaptor.capture());
+        assertEquals(ObjectionProcessingStatus.OBJECTION_REJECTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
+        assertNull(requestCaptor.getValue().getInitialExpirationOn());
+    }
 
     @Test
     void process_objectionNotFound_rethrowsInvalidMessageWithoutUpdatingStatus() {
