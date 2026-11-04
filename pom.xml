@@ -12,7 +12,7 @@
     <version>unversioned</version>
     <properties>
         <java.version>21</java.version>
-        <structured-logging.version>4.0.3</structured-logging.version>
+        <structured-logging.version>4.0.7</structured-logging.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -111,6 +111,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
