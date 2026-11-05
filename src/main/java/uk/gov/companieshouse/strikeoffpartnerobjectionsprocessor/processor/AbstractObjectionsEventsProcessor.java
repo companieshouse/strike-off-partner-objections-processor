@@ -54,6 +54,9 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
 
     protected final void updateObjectionStatus(T message, UpdateObjectionStatusRequest request) {
         String uri = buildInternalStatusUri(message, OBJECTIONS, STATUS);
+        String requestedStatus = request.getProcessingStatus().getValue();
+        LOG.info("Calling API to update objection status to " + requestedStatus
+                + " using api url: " + uri, DataMapHolder.getLogMap());
         try {
             internalApiClient
                     .privateStrikeOffPartnerObjectionsResourceHandler()
@@ -62,7 +65,8 @@ public abstract class AbstractObjectionsEventsProcessor<T extends SpecificRecord
             LOG.info("Successfully updated objection status to " + request.getProcessingStatus()
                     + " for eventId=" + getEventId(message), DataMapHolder.getLogMap());
         } catch (Exception exception) {
-            LOG.info("Failed to update objection status using api url: " + uri, DataMapHolder.getLogMap());
+            LOG.info("Failed to update objection status to " + requestedStatus
+                    + " using api url: " + uri, DataMapHolder.getLogMap());
             throw mapApiException(message, exception);
         }
     }
