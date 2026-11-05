@@ -2,15 +2,12 @@ package uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.processor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import uk.gov.companieshouse.api.InternalApiClient;
 import uk.gov.companieshouse.api.objections.model.BaseObjectionResponse;
 import uk.gov.companieshouse.api.objections.model.ObjectionProcessingStatus;
 import uk.gov.companieshouse.api.objections.model.UpdateObjectionStatusRequest;
 import uk.gov.companieshouse.strikeoff.partner.objections.StrikeOffPartnerObjectionsProcessed;
-import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.DuplicateRecordException;
 import uk.gov.companieshouse.strikeoffpartnerobjectionsprocessor.exceptions.InvalidStrikeOffMessageException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -97,23 +94,42 @@ class ProcessedObjectionsProcessorTest {
         assertNull(requestCaptor.getValue().getInitialExpirationOn());
     }
 
-    @ParameterizedTest
-    @EnumSource(
-            value = ObjectionProcessingStatus.class,
-            names = {"OBJECTION_ACCEPTED", "OBJECTION_REJECTED"})
-    void process_terminalObjection_throwsDuplicateWithoutUpdatingStatus(
-            ObjectionProcessingStatus terminalStatus) {
+    @Test
+    void process_acceptedObjectionReplay_updatesStatusAndOutcomeFields() {
         StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, SUCCESS);
-        doReturn(objectionWithStatus(terminalStatus)).when(processor).getObjectionDetails(message);
-
-        DuplicateRecordException exception =
-                assertThrows(DuplicateRecordException.class, () -> processor.process(message));
-
-        assertTrue(exception.getMessage().contains(STRIKE_OFF_EVENT_ID));
-        assertTrue(exception.getMessage().contains(OBJECTION_ID));
-        assertTrue(exception.getMessage().contains(terminalStatus.getValue()));
-        verify(processor, never()).updateObjectionStatus(
+        doReturn(objectionWithStatus(ObjectionProcessingStatus.OBJECTION_ACCEPTED))
+                .when(processor).getObjectionDetails(message);
+        doNothing().when(processor).updateObjectionStatus(
                 eq(message), any(UpdateObjectionStatusRequest.class));
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+        verify(processor).updateObjectionStatus(eq(message), requestCaptor.capture());
+        assertEquals(ObjectionProcessingStatus.OBJECTION_ACCEPTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getInitialExpirationOn(), requestCaptor.getValue().getInitialExpirationOn());
+        assertNull(requestCaptor.getValue().getFailureReason());
+    }
+
+    @Test
+    void process_rejectedObjectionReplay_updatesStatusAndOutcomeFields() {
+        StrikeOffPartnerObjectionsProcessed message = processedMessage(OBJECTION, FAILURE);
+        doReturn(objectionWithStatus(ObjectionProcessingStatus.OBJECTION_REJECTED))
+                .when(processor).getObjectionDetails(message);
+        doNothing().when(processor).updateObjectionStatus(
+                eq(message), any(UpdateObjectionStatusRequest.class));
+
+        assertDoesNotThrow(() -> processor.process(message));
+
+        ArgumentCaptor<UpdateObjectionStatusRequest> requestCaptor =
+                ArgumentCaptor.forClass(UpdateObjectionStatusRequest.class);
+        verify(processor).updateObjectionStatus(eq(message), requestCaptor.capture());
+        assertEquals(ObjectionProcessingStatus.OBJECTION_REJECTED,
+                requestCaptor.getValue().getProcessingStatus());
+        assertEquals(message.getErrorMessage(), requestCaptor.getValue().getFailureReason());
+        assertNull(requestCaptor.getValue().getInitialExpirationOn());
     }
 
     @Test
